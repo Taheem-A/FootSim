@@ -31,7 +31,7 @@ public class Team {
             }
         }
     }
-    
+
     /* Getters & Setters */
     public String getName() {
         return this.name;
@@ -50,7 +50,7 @@ public class Team {
     public int getNumberOfPlayers() {
         return this.players.size();
     }
-    
+
     public double getAverageOverallRating() {
         if (players.isEmpty()) return 0;
 
@@ -90,14 +90,23 @@ public class Team {
     public Player findPlayerByName(String name) {
         if (this.players == null) return null;
         if (name == null || name.trim().isEmpty()) return null;
-        
+
         name = name.trim();
         for (Player player : this.players) if (player.getName().equalsIgnoreCase(name)) return player;
         return null;
     }
 
-    /* Team Rating Methods */
+    public Player getGoalkeeper() {
+        for (Player player : this.players) {
+            if (player.getPosition().equalsIgnoreCase("GK")) {
+                return player;
+            }
+        }
 
+        return null;
+    }
+
+    /* Team Rating Methods */
     public double getTeamAttackRating() {
         return calculateAverageByCategory("ATK", null);
     }
@@ -108,6 +117,14 @@ public class Team {
 
     public double getTeamDefenceRating() {
         return calculateAverageByCategory("DEF", null);
+    }
+
+    public double getTeamGoalkeeperRating() {
+        Player goalkeeper = getGoalkeeper();
+
+        if (goalkeeper == null) return 50;
+
+        return goalkeeper.getGoalkeepingRating();
     }
 
     public double getTeamAttackRating(ArrayList<Player> excludedPlayers) {
@@ -130,6 +147,8 @@ public class Team {
 
         double total = 0;
 
+        // Excluded players are skipped but the divisor remains the full team size.
+        // This intentionally lowers team strength when players are red-carded.
         for (Player player : this.players) {
             if (!(excludedPlayers != null && findPlayer(player, excludedPlayers))) total += getPlayerRatingByCategory(player, category);
         }
@@ -146,13 +165,14 @@ public class Team {
             case "ATK" -> player.getAttackRating();
             case "MID" -> player.getMidfieldRating();
             case "DEF" -> player.getDefenceRating();
+            case "GK" -> player.getGoalkeepingRating();
             default -> player.getOverallRating();
         };
     }
 
     private String validateName(String name) {
         if (name == null || name.trim().isEmpty()) throw new IllegalArgumentException("Team name cannot be empty/blank.");
-        return name;
+        return name.trim();
     }
 
     private int roundVal(double val) {
@@ -182,6 +202,7 @@ public class Team {
             + "Attack: " + roundVal(getTeamAttackRating()) + "\n"
             + "Midfield: " + roundVal(getTeamMidfieldRating()) + "\n"
             + "Defence: " + roundVal(getTeamDefenceRating()) + "\n"
+            + "Goalkeeper: " + roundVal(getTeamGoalkeeperRating()) + "\n"
             + "Roster:";
 
         for (Player player : players) {

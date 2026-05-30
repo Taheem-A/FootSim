@@ -1,5 +1,10 @@
-import gamemechanics.*;
-import java.util.*;
+import gamemechanics.Player;
+import gamemechanics.Team;
+import gamemechanics.Match;
+import simulation.SimulationEngine;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class App {
     public static void main(String[] args) {
@@ -26,59 +31,13 @@ public class App {
         System.out.println(awayTeam);
         System.out.println();
 
-        // Creating match
-        Match match = new Match(homeTeam, awayTeam);
-
-        System.out.println("=== MATCH CREATED ===");
-        System.out.println(match);
-        System.out.println();
-
-        // Starting match
-        match.startMatch();
-
-        // Creating normal events
-        match.createNormalShot(homeTeam, 12);
-        match.createFoul(awayTeam, 24);
-        match.createNormalShot(awayTeam, 31);
-
-        // Creating and resolving a big chance
-        Event bigChance = match.createBigChance(homeTeam, 56);
-
-        System.out.println("=== BIG CHANCE ===");
-        System.out.println(bigChance.getDescription());
-        System.out.println("Available choices:");
-
-        for (String choice : bigChance.getChoices()) {
-            System.out.println("- " + choice);
-        }
-
-        // For prototype testing, we choose one automatically
-        match.resolveChance(bigChance, "Finesse Shot");
-        System.out.println();
-
-        // Creating and resolving a penalty
-        Event penalty = match.createPenalty(awayTeam, 75);
-
-        System.out.println("=== PENALTY ===");
-        System.out.println(penalty.getDescription());
-        System.out.println("Available choices:");
-
-        for (String choice : penalty.getChoices()) {
-            System.out.println("- " + choice);
-        }
-
-        // For prototype testing, we choose one automatically
-        match.resolveChance(penalty, "Shoot Left");
-        System.out.println();
-
-        // Ending match
-        match.endMatch();
+        // Running the match through the simulation engine
+        SimulationEngine engine = new SimulationEngine();
+        Match match = engine.simulateMatch(homeTeam, awayTeam);
 
         // Displaying final match result
         System.out.println("=== FINAL MATCH SUMMARY ===");
         System.out.println(match);
-        System.out.println();
-
         System.out.println("Winner: " + match.getWinner());
         System.out.println();
 

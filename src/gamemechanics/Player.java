@@ -48,13 +48,13 @@ public class Player {
 
     private String validatePosition(String position) {
         if (position == null || position.trim().isEmpty()) throw new IllegalArgumentException("Position cannot be blank/empty.");
-        position = position.trim();
+        position = position.trim().toUpperCase();
         if (!position.equals("ATK") && !position.equals("MID") && !position.equals("DEF") && !position.equals("GK")) throw new IllegalArgumentException("Position must be either ATK, MID, DEF, GK.");
 
         return position;
     }
     /* */
-    
+
     /* Getters & Setters */
     public String getName() {
         return this.name;
@@ -122,13 +122,13 @@ public class Player {
 
     /* */
 
-    /* Methods calculating different types of overalls */
+    /* Methods calculating different types of ratings */
     public double getOverallRating() {
         return (this.pace + this.shooting + this.passing + this.dribbling + this.defence + this.physical) / 6.0;
     }
-    
+
     public int getRoundedOverallRating() {
-        return (int) Math.round((this.pace + this.shooting + this.passing + this.dribbling + this.defence + this.physical) / 6.0);
+        return (int) Math.round(getOverallRating());
     }
 
     public double getAttackRating() {
@@ -141,6 +141,10 @@ public class Player {
 
     public double getDefenceRating() {
         return this.pace * 0.10 + this.passing * 0.10 + this.dribbling * 0.05 + this.defence * 0.50 + this.physical * 0.25;
+    }
+
+    public double getGoalkeepingRating() {
+        return this.pace * 0.10 + this.passing * 0.15 + this.dribbling * 0.05 + this.defence * 0.50 + this.physical * 0.20;
     }
 
     /* */

@@ -4,7 +4,6 @@ package gamemechanics;
 // Importing necessary classes
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Random;
 
 public class Match {
     // Instance fields
@@ -17,7 +16,6 @@ public class Match {
     private final ArrayList<Player> redCardedPlayers;
     private boolean started;
     private boolean finished;
-    private final Random random;
 
     // Constructor
     public Match(Team homeTeam, Team awayTeam) {
@@ -32,7 +30,6 @@ public class Match {
         this.redCardedPlayers = new ArrayList<>();
         this.started = false;
         this.finished = false;
-        this.random = new Random();
     }
 
     /* Getters */
@@ -73,7 +70,7 @@ public class Match {
     }
     /* */
 
-    /* Main Match Methods */
+    /* Main Match State Methods */
     public void startMatch() {
         if (this.started) throw new IllegalStateException("Match has already started.");
 
@@ -81,7 +78,7 @@ public class Match {
 
         addEvent(new Event(
             0,
-            "KICKOFF",
+            EventType.KICKOFF,
             null,
             null,
             "Kickoff: " + this.homeTeam.getName() + " vs " + this.awayTeam.getName() + "."
@@ -93,15 +90,15 @@ public class Match {
 
         if (this.finished) throw new IllegalStateException("Match has already finished.");
 
-        this.finished = true;
-
         addEvent(new Event(
             90,
-            "FULL_TIME",
+            EventType.FULL_TIME,
             null,
             null,
             "Full time: " + getScoreLine() + "."
         ));
+
+        this.finished = true;
     }
 
     public void addEvent(Event event) {
@@ -111,297 +108,31 @@ public class Match {
     }
 
     public void addGoal(Team scoringTeam) {
-        if (!isTeamInMatch(scoringTeam)) throw new IllegalArgumentException("Scoring team must be part of the match.");
+        validateMatchInProgress();
+        validateTeamInMatch(scoringTeam);
 
         if (isHomeTeam(scoringTeam)) this.homeScore++;
         else this.awayScore++;
     }
-    /* */
 
-    /* Chance/Event Creation Methods */
-    public Event createBigChance(Team attackingTeam, int minute) {
+    public void recordYellowCard(Player player) {
         validateMatchInProgress();
-        validateTeamInMatch(attackingTeam);
+        if (player == null) throw new IllegalArgumentException("Player cannot be null.");
 
-        Player player = getRandomPlayerByPositions(attackingTeam, new String[] {"ATK", "MID"});
-
-        ArrayList<String> choices = new ArrayList<>();
-        choices.add("Power Shot");
-        choices.add("Finesse Shot");
-        choices.add("Pass Across Goal");
-        choices.add("Dribble Keeper");
-
-        Event event = new Event(
-            minute,
-            "BIG_CHANCE",
-            attackingTeam,
-            player,
-            player.getName() + " has a big chance for " + attackingTeam.getName() + "!",
-            true,
-            choices
-        );
-
-        addEvent(event);
-        return event;
+        if (!findPlayer(player, this.yellowCardedPlayers) && !findPlayer(player, this.redCardedPlayers)) {
+            this.yellowCardedPlayers.add(player);
+        }
     }
 
-    public Event createPenalty(Team attackingTeam, int minute) {
+    public void recordRedCard(Player player) {
         validateMatchInProgress();
-        validateTeamInMatch(attackingTeam);
+        if (player == null) throw new IllegalArgumentException("Player cannot be null.");
 
-        Player player = getRandomPlayerByPositions(attackingTeam, new String[] {"ATK", "MID"});
-
-        ArrayList<String> choices = new ArrayList<>();
-        choices.add("Shoot Left");
-        choices.add("Shoot Middle");
-        choices.add("Shoot Right");
-
-        Event event = new Event(
-            minute,
-            "PENALTY",
-            attackingTeam,
-            player,
-            player.getName() + " steps up to take a penalty for " + attackingTeam.getName() + ".",
-            true,
-            choices
-        );
-
-        addEvent(event);
-        return event;
-    }
-
-    public Event createFoul(Team committingTeam, int minute) {
-        validateMatchInProgress();
-        validateTeamInMatch(committingTeam);
-
-        Player player = getRandomPlayerByPositions(committingTeam, new String[] {"DEF", "MID"});
-
-        Event foul = new Event(
-            minute,
-            "FOUL",
-            committingTeam,
-            player,
-            player.getName() + " committed a foul for " + committingTeam.getName() + "."
-        );
-
-        addEvent(foul);
-
-        // Small chance of a card after a foul
-        int cardChance = random.nextInt(100) + 1;
-
-        if (cardChance <= 5) {
-            addEvent(new Event(
-                minute,
-                "RED_CARD",
-                committingTeam,
-                player,
-                player.getName() + " received a red card!"
-            ));
+        if (!findPlayer(player, this.redCardedPlayers)) {
             this.redCardedPlayers.add(player);
-            this.yellowCardedPlayers.remove(player);
-        } else if (cardChance <= 30) {
-            if (findPlayer(player, yellowCardedPlayers)) {
-                addEvent(new Event(
-                    minute,
-                    "YELLOW_CARD",
-                    committingTeam,
-                    player,
-                    player.getName() + " received a second yellow card."
-                ));
-                addEvent(new Event(
-                    minute,
-                    "RED_CARD",
-                    committingTeam,
-                    player,
-                    player.getName() + " received a red card!"
-                ));
-                this.redCardedPlayers.add(player);
-                this.yellowCardedPlayers.remove(player);
-            } else {
-                addEvent(new Event(
-                    minute,
-                    "YELLOW_CARD",
-                    committingTeam,
-                    player,
-                    player.getName() + " received a yellow card."
-                ));
-                this.yellowCardedPlayers.add(player);
-            }
         }
 
-        return foul;
-    }
-
-    public Event createNormalShot(Team attackingTeam, int minute) {
-        validateMatchInProgress();
-        validateTeamInMatch(attackingTeam);
-
-        Team defendingTeam = getOpponent(attackingTeam);
-        Player player = getRandomPlayerByPositions(attackingTeam, new String[] {"ATK", "MID"});
-
-        int shotType = random.nextInt(4);
-        String randomShotType = switch (shotType) {
-            case 0 -> "Power Shot";
-            case 1 -> "Finesse Shot";
-            case 2 -> "Pass Across Goal";
-            default -> "Dribble Keeper";
-        };
-
-        double conversionChance = calculateConversionChance(player, randomShotType, attackingTeam, defendingTeam) * 0.55;
-        boolean scored = random.nextDouble() * 100 <= conversionChance;
-
-        if (scored) {
-            addGoal(attackingTeam);
-
-            String shotTypeDescription = switch (randomShotType) {
-                case "Power Shot" -> " with a powerful shot";
-                case "Finesse Shot" -> " with a finesse shot";
-                case "Pass Across Goal" -> " with a pass across the goal";
-                default -> " after a dribble around the keeper";
-            };
-
-            Event goal = new Event(
-                minute,
-                "GOAL",
-                attackingTeam,
-                player,
-                player.getName() + " scored for " + attackingTeam.getName() + shotTypeDescription + "!"
-            );
-
-            addEvent(goal);
-            return goal;
-        }
-
-        String shotTypeDescription = switch (randomShotType) {
-            case "Power Shot" -> "a power shot";
-            case "Finesse Shot" -> "a finesse shot";
-            case "Pass Across Goal" -> "a pass across the goal";
-            default -> "to dribble the ball around the keeper";
-        };
-
-        Event miss = new Event(
-            minute,
-            "MISS",
-            attackingTeam,
-            player,
-            player.getName() + " tried " + shotTypeDescription + " for " + attackingTeam.getName() + ", but they failed!"
-        );
-
-        addEvent(miss);
-        return miss;
-    }
-    /* */
-
-    /* Chance Resolution Methods */
-    public void resolveChance(Event event, String selectedChoice) {
-        validateMatchInProgress();
-
-        if (event == null) throw new IllegalArgumentException("Event cannot be null.");
-
-        if (!this.events.contains(event)) throw new IllegalArgumentException("Event must already be part of the match.");
-
-        if (!event.isBigChance()) throw new IllegalArgumentException("Only big chance events can be resolved with a choice.");
-
-        if (event.isResolved()) throw new IllegalStateException("This event has already been resolved.");
-
-        Team attackingTeam = event.getTeam();
-        Team defendingTeam = getOpponent(attackingTeam);
-        Player player = event.getPlayer();
-
-        event.setSelectedChoice(selectedChoice);
-
-        double conversionChance;
-
-        if (event.isPenalty()) conversionChance = calculatePenaltyConversionChance(player, selectedChoice);
-        else conversionChance = calculateConversionChance(player, selectedChoice, attackingTeam, defendingTeam);
-
-        boolean scored = random.nextDouble() * 100 <= conversionChance;
-        event.setSuccessful(scored);
-
-        if (scored) {
-            addGoal(attackingTeam);
-
-            addEvent(new Event(
-                event.getMinute(),
-                "GOAL",
-                attackingTeam,
-                player,
-                player.getName() + " scored for " + attackingTeam.getName() + "!"
-            ));
-        } else {
-            addEvent(new Event(
-                event.getMinute(),
-                "SAVE",
-                defendingTeam,
-                null,
-                defendingTeam.getName() + " survived the chance from " + attackingTeam.getName() + "."
-            ));
-        }
-    }
-
-    public double calculateConversionChance(Player player, String selectedChoice, Team attackingTeam, Team defendingTeam) {
-        if (player == null) throw new IllegalArgumentException("Player cannot be null.");
-
-        validateTeamInMatch(attackingTeam);
-        validateTeamInMatch(defendingTeam);
-
-        if (selectedChoice == null || selectedChoice.trim().isEmpty()) throw new IllegalArgumentException("Selected choice cannot be blank/empty.");
-
-        selectedChoice = selectedChoice.trim();
-
-        double chance =
-            player.getShooting() * 0.35
-            + player.getDribbling() * 0.20
-            + player.getPace() * 0.10
-            + player.getPhysical() * 0.10
-            + attackingTeam.getTeamAttackRating(redCardedPlayers) * 0.15
-            + attackingTeam.getTeamMidfieldRating(redCardedPlayers) * 0.10
-            - defendingTeam.getTeamDefenceRating(redCardedPlayers) * 0.25;
-
-        if (selectedChoice.equalsIgnoreCase("Power Shot")) {
-            chance += (player.getShooting() - 50) * 0.08;
-            chance += (player.getPhysical() - 50) * 0.04;
-        } else if (selectedChoice.equalsIgnoreCase("Finesse Shot")) {
-            chance += (player.getShooting() - 50) * 0.07;
-            chance += (player.getDribbling() - 50) * 0.05;
-        } else if (selectedChoice.equalsIgnoreCase("Pass Across Goal")) {
-            chance += (player.getPassing() - 50) * 0.08;
-            chance += (attackingTeam.getTeamAttackRating(redCardedPlayers) - 50) * 0.05;
-        } else if (selectedChoice.equalsIgnoreCase("Dribble Keeper")) {
-            chance += (player.getDribbling() - 50) * 0.08;
-            chance += (player.getPace() - 50) * 0.05;
-        }
-
-        return clamp(chance, 5, 95);
-    }
-
-    private double calculatePenaltyConversionChance(Player player, String selectedChoice) {
-        if (player == null) throw new IllegalArgumentException("Player cannot be null.");
-
-        if (selectedChoice == null || selectedChoice.trim().isEmpty()) throw new IllegalArgumentException("Selected choice cannot be blank/empty.");
-            
-        selectedChoice = selectedChoice.trim().toUpperCase();
-        
-        if (!selectedChoice.equalsIgnoreCase("SHOOT LEFT") && !selectedChoice.equalsIgnoreCase("SHOOT MIDDLE") && !selectedChoice.equalsIgnoreCase("SHOOT RIGHT")) throw new IllegalArgumentException("Selected choice must be either 'Shoot Left', 'Shoot Middle', or 'Shoot Right'.");
-
-        double chance = 65 + player.getShooting() * 0.30;
-
-        chance += switch (selectedChoice) {
-            case "SHOOT MIDDLE" -> 5;
-            default -> (player.getShooting() - 65) * 0.15;
-        };
-
-        String keeperDive = switch (random.nextInt(3)) {
-            case 0 -> "Shoot Left";
-            case 1 -> "Shoot Middle";
-            case 2 -> "Shoot Right";
-            default -> "Shoot Middle";
-        };
-
-        if (keeperDive.equalsIgnoreCase(selectedChoice)) chance -= 45;
-        else chance += 15;
-
-        return clamp(chance, 10, 95);
+        this.yellowCardedPlayers.removeIf(p -> p.getName().equalsIgnoreCase(player.getName()));
     }
     /* */
 
@@ -421,13 +152,6 @@ public class Match {
         if (this.events.isEmpty()) return "No match events recorded.";
 
         ArrayList<Event> sortedEvents = new ArrayList<>(this.events);
-
-        // Collections.sort(sortedEvents, new Comparator<Event>() {
-        //     @Override
-        //     public int compare(Event event1, Event event2) {
-        //         return event1.getMinute() - event2.getMinute();
-        //     }
-        // });
 
         Collections.sort(sortedEvents, (Event event1, Event event2) -> event1.getMinute() - event2.getMinute());
 
@@ -464,50 +188,30 @@ public class Match {
         if (homeTeam == awayTeam) throw new IllegalArgumentException("A team cannot play against itself.");
     }
 
-    private void validateMatchInProgress() {
+    public void validateMatchInProgress() {
         if (!this.started) throw new IllegalStateException("Match has not started yet.");
 
         if (this.finished) throw new IllegalStateException("Match has already finished.");
     }
 
-    private void validateTeamInMatch(Team team) {
+    public void validateTeamInMatch(Team team) {
         if (!isTeamInMatch(team)) throw new IllegalArgumentException("Team must be part of this match.");
     }
 
-    private boolean isTeamInMatch(Team team) {
+    public boolean isTeamInMatch(Team team) {
         return team != null && (team == this.homeTeam || team == this.awayTeam);
     }
 
-    private boolean isHomeTeam(Team team) {
+    public boolean isHomeTeam(Team team) {
         return team == this.homeTeam;
     }
 
-    private Team getOpponent(Team team) {
+    public Team getOpponent(Team team) {
         validateTeamInMatch(team);
 
         if (isHomeTeam(team)) return this.awayTeam;
 
         return this.homeTeam;
-    }
-
-    private Player getRandomPlayerByPositions(Team team, String[] positions) {
-        ArrayList<Player> players = team.getPlayers();
-
-        if (players.isEmpty()) throw new IllegalStateException("Cannot select a player from an empty team.");
-
-        ArrayList<Player> candidates = new ArrayList<>();
-
-        for (Player player : players) for (String position : positions) if (player.getPosition().equalsIgnoreCase(position) && !findPlayer(player, redCardedPlayers)) candidates.add(player);
-
-        if (candidates.isEmpty()) for (Player player : players) if (!findPlayer(player, redCardedPlayers)) candidates.add(player);
-
-        return candidates.get(random.nextInt(candidates.size()));
-    }
-
-    private double clamp(double value, double min, double max) {
-        if (value < min) return min;
-        if (value > max) return max;
-        return value;
     }
 
     private boolean findPlayer(Player player, ArrayList<Player> playerList) {

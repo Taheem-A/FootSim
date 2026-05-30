@@ -7,7 +7,7 @@ import java.util.ArrayList;
 public class Event {
     // Instance fields
     private int minute;
-    private String type;
+    private EventType type;
     private Team team;
     private Player player;
     private String description;
@@ -18,12 +18,12 @@ public class Event {
     private boolean resolved;
 
     // Constructor for regular events
-    public Event(int minute, String type, Team team, Player player, String description) {
+    public Event(int minute, EventType type, Team team, Player player, String description) {
         this(minute, type, team, player, description, false, new ArrayList<>());
     }
 
     // Constructor for big chance / interactive events
-    public Event(int minute, String type, Team team, Player player, String description, boolean bigChance, ArrayList<String> choices) {
+    public Event(int minute, EventType type, Team team, Player player, String description, boolean bigChance, ArrayList<String> choices) {
         this.minute = validateMinute(minute);
         this.type = validateType(type);
         this.description = validateDescription(description);
@@ -51,12 +51,25 @@ public class Event {
         }
     }
 
+    // Backwards-compatible constructors for older test code that still passes event types as strings
+    public Event(int minute, String type, Team team, Player player, String description) {
+        this(minute, parseType(type), team, player, description, false, new ArrayList<>());
+    }
+
+    public Event(int minute, String type, Team team, Player player, String description, boolean bigChance, ArrayList<String> choices) {
+        this(minute, parseType(type), team, player, description, bigChance, choices);
+    }
+
     /* Getters */
     public int getMinute() {
         return this.minute;
     }
 
     public String getType() {
+        return this.type.name();
+    }
+
+    public EventType getEventType() {
         return this.type;
     }
 
@@ -139,19 +152,19 @@ public class Event {
     }
 
     public boolean isGoal() {
-        return this.type.equals("GOAL");
+        return this.type == EventType.GOAL;
     }
 
     public boolean isPenalty() {
-        return this.type.equals("PENALTY");
+        return this.type == EventType.PENALTY;
     }
 
     public boolean isCard() {
-        return this.type.equals("YELLOW_CARD") || this.type.equals("RED_CARD");
+        return this.type == EventType.YELLOW_CARD || this.type == EventType.RED_CARD;
     }
 
     public boolean isScoringChance() {
-        return this.type.equals("SHOT") || this.type.equals("BIG_CHANCE") || this.type.equals("PENALTY") || this.type.equals("GOAL");
+        return this.type == EventType.SHOT || this.type == EventType.BIG_CHANCE || this.type == EventType.PENALTY || this.type == EventType.GOAL;
     }
     /* */
 
@@ -164,36 +177,26 @@ public class Event {
         return minute;
     }
 
-    private String validateType(String type) {
+    private EventType validateType(EventType type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Event type cannot be null.");
+        }
+
+        return type;
+    }
+
+    private static EventType parseType(String type) {
         if (type == null || type.trim().isEmpty()) {
             throw new IllegalArgumentException("Event type cannot be blank/empty.");
         }
 
         type = type.trim().toUpperCase().replace(" ", "_");
 
-        String[] validTypes = {
-            "KICKOFF",
-            "SHOT",
-            "BIG_CHANCE",
-            "GOAL",
-            "SAVE",
-            "MISS",
-            "FOUL",
-            "YELLOW_CARD",
-            "RED_CARD",
-            "PENALTY",
-            "HALF_TIME",
-            "FULL_TIME",
-            "COMMENTARY"
-        };
-
-        for (String validType : validTypes) {
-            if (type.equals(validType)) {
-                return type;
-            }
+        try {
+            return EventType.valueOf(type);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid event type.");
         }
-
-        throw new IllegalArgumentException("Invalid event type.");
     }
 
     private String validateDescription(String description) {
@@ -204,8 +207,8 @@ public class Event {
         return description.trim();
     }
 
-    private boolean requiresTeam(String type) {
-        return !(type.equals("KICKOFF") || type.equals("HALF_TIME") || type.equals("FULL_TIME") || type.equals("COMMENTARY"));
+    private boolean requiresTeam(EventType type) {
+        return !(type == EventType.KICKOFF || type == EventType.HALF_TIME || type == EventType.FULL_TIME || type == EventType.COMMENTARY);
     }
     /* */
 
