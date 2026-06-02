@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class SimulationEngine {
+    private static final int DEFAULT_ADVANCE_AMOUNT = 5;
     private final Random random;
 
     public SimulationEngine() {
@@ -28,38 +29,90 @@ public class SimulationEngine {
     public void simulateMatch(Match match) {
         if (match == null) throw new IllegalArgumentException("Match cannot be null.");
 
+        while (!match.isFinished()) {
+            advanceMatch(match, 1);
+        }
+    }
+
+    public ArrayList<Event> advanceMatch(Match match) {
+        return advanceMatch(match, DEFAULT_ADVANCE_AMOUNT);
+    }
+
+    public ArrayList<Event> advanceMatch(Match match, int minuteAmount) {
+        if (match == null) throw new IllegalArgumentException("Match cannot be null.");
+        if (minuteAmount <= 0) throw new IllegalArgumentException("Minute amount must be greater than 0.");
+
+        ArrayList<Event> newEvents = new ArrayList<>();
+
+        if (match.isFinished()) return newEvents;
+
+        int eventCountBefore = match.getEvents().size();
+
         if (!match.hasStarted()) {
             match.startMatch();
         }
 
-        for (int minute = 5; minute <= 90; minute += 5) {
-            int eventRoll = random.nextInt(100) + 1;
-            Team attackingTeam = chooseAttackingTeam(match);
-            Event event;
+        for (int i = 0; i < minuteAmount && !match.isFinished(); i++) {
+            if (match.getCurrentMinute() >= match.getMatchLength()) {
+                match.endMatch();
+                break;
+            }
 
-            if (eventRoll <= 55) {
-                createNormalShot(match, attackingTeam, minute);
-            } else if (eventRoll <= 70) {
-                createFoul(match, match.getOpponent(attackingTeam), minute);
-            } else if (eventRoll <= 85) {
-                event = createBigChance(match, attackingTeam, minute);
-                resolveChance(match, event, chooseRandomChoice(event));
-            } else if (eventRoll <= 92) {
-                event = createPenalty(match, attackingTeam, minute);
-                resolveChance(match, event, chooseRandomChoice(event));
-            } else {
-                match.addEvent(new Event(
-                    minute,
-                    EventType.COMMENTARY,
-                    null,
-                    null,
-                    "Both teams are battling for control in midfield."
-                ));
+            match.advanceMinute(1);
+
+            generateMinuteEvents(match, match.getCurrentMinute());
+
+            if (match.getCurrentMinute() >= match.getMatchLength() && !match.isFinished()) {
+                match.endMatch();
             }
         }
 
-        if (!match.isFinished()) {
-            match.endMatch();
+        ArrayList<Event> allEvents = match.getEvents();
+        for (int i = eventCountBefore; i < allEvents.size(); i++) {
+            newEvents.add(allEvents.get(i));
+        }
+
+        return newEvents;
+    }
+
+    private void generateMinuteEvents(Match match, int minute) {
+        if (minute == 45) {
+            match.addEvent(new Event(
+                minute,
+                EventType.HALF_TIME,
+                null,
+                null,
+                "Half time: " + match.getScoreLine() + "."
+            ));
+            return;
+        }
+
+        // Most minutes should have no major event. Otherwise the match becomes basketball in disguise.
+        int eventChance = random.nextInt(100) + 1;
+        if (eventChance > 24) return;
+
+        int eventRoll = random.nextInt(100) + 1;
+        Team attackingTeam = chooseAttackingTeam(match);
+        Event event;
+
+        if (eventRoll <= 50) {
+            createNormalShot(match, attackingTeam, minute);
+        } else if (eventRoll <= 65) {
+            createFoul(match, match.getOpponent(attackingTeam), minute);
+        } else if (eventRoll <= 80) {
+            event = createBigChance(match, attackingTeam, minute);
+            resolveChance(match, event, chooseRandomChoice(event));
+        } else if (eventRoll <= 86) {
+            event = createPenalty(match, attackingTeam, minute);
+            resolveChance(match, event, chooseRandomChoice(event));
+        } else {
+            match.addEvent(new Event(
+                minute,
+                EventType.COMMENTARY,
+                null,
+                null,
+                "Both teams are battling for control in midfield."
+            ));
         }
     }
 

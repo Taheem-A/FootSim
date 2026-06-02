@@ -1,6 +1,8 @@
+import gamemechanics.Event;
+import gamemechanics.Match;
 import gamemechanics.Player;
 import gamemechanics.Team;
-import gamemechanics.Match;
+import simulation.LiveMatchRunner;
 import simulation.SimulationEngine;
 
 import java.util.ArrayList;
@@ -8,47 +10,85 @@ import java.util.Arrays;
 
 public class App {
     public static void main(String[] args) {
-        // Creating players for home team
-        Player homeStk = new Player("Cristiano Ronaldo", "ATK", 88, 92, 75, 84, 35, 90);
-        Player homeMid = new Player("Declan Rice", "MID", 82, 73, 88, 78, 87, 86);
-        Player homeDef = new Player("Virgil van Dijk", "DEF", 74, 60, 72, 70, 94, 91);
-        Player homeGk = new Player("David Raya", "GK", 45, 20, 74, 58, 88, 65);
+        // === ARSENAL FC (Home Team) ===
+        Player arsGk   = new Player("David Raya", "GK", 83, 40, 80, 84, 48, 77); // Diver/Handl/Kick/Reflex/Pos/Speed adjusted
+        Player arsDef1 = new Player("William Saliba", "DEF", 81, 40, 70, 73, 87, 83);
+        Player arsDef2 = new Player("Gabriel Magalhães", "DEF", 69, 45, 62, 63, 86, 84);
+        Player arsDef3 = new Player("Ben White", "DEF", 77, 54, 76, 77, 82, 76);
+        Player arsDef4 = new Player("Jurriën Timber", "DEF", 79, 53, 71, 79, 80, 78);
+        Player arsMid1 = new Player("Declan Rice", "MID", 75, 66, 77, 79, 83, 83);
+        Player arsMid2 = new Player("Martin Ødegaard", "MID", 76, 81, 89, 88, 58, 64);
+        Player arsMid3 = new Player("Mikel Merino", "MID", 67, 75, 77, 80, 79, 81);
+        Player arsAtk1 = new Player("Bukayo Saka", "ATK", 86, 81, 83, 87, 45, 69);
+        Player arsAtk2 = new Player("Kai Havertz", "ATK", 80, 81, 79, 82, 47, 77);
+        Player arsAtk3 = new Player("Leandro Trossard", "ATK", 78, 82, 80, 84, 34, 65);
 
-        // Creating players for away team
-        Player awayStk = new Player("Kylian Mbappe", "ATK", 97, 91, 80, 93, 36, 78);
-        Player awayMid = new Player("Kevin De Bruyne", "MID", 74, 86, 94, 88, 64, 78);
-        Player awayDef = new Player("Ruben Dias", "DEF", 63, 54, 72, 68, 90, 89);
-        Player awayGk = new Player("Thibaut Courtois", "GK", 40, 18, 70, 55, 90, 78);
+        // === FC BARCELONA (Away Team) ===
+        Player barGk   = new Player("Marc-André ter Stegen", "GK", 84, 83, 88, 87, 47, 85); 
+        Player barDef1 = new Player("Ronald Araújo", "DEF", 82, 49, 63, 65, 85, 84);
+        Player barDef2 = new Player("Jules Koundé", "DEF", 80, 45, 74, 76, 84, 77);
+        Player barDef3 = new Player("Pau Cubarsí", "DEF", 68, 33, 72, 70, 79, 66);
+        Player barDef4 = new Player("Alejandro Balde", "DEF", 91, 47, 71, 78, 74, 64);
+        Player barMid1 = new Player("Frenkie de Jong", "MID", 79, 69, 85, 87, 77, 78);
+        Player barMid2 = new Player("Pedri", "MID", 77, 70, 86, 87, 69, 64);
+        Player barMid3 = new Player("Gavi", "MID", 77, 68, 77, 83, 72, 72);
+        Player barAtk1 = new Player("Robert Lewandowski", "ATK", 75, 88, 71, 84, 45, 81);
+        Player barAtk2 = new Player("Lamine Yamal", "ATK", 84, 77, 78, 86, 33, 53);
+        Player barAtk3 = new Player("Raphinha", "ATK", 89, 80, 80, 85, 54, 73);
 
-        // Creating teams
-        Team homeTeam = new Team("Home Team", new ArrayList<>(Arrays.asList(homeStk, homeMid, homeDef, homeGk)));
-        Team awayTeam = new Team("Away Team", new ArrayList<>(Arrays.asList(awayStk, awayMid, awayDef, awayGk)));
-
-        // Displaying teams
-        System.out.println("=== TEAM INFORMATION ===");
-        System.out.println(homeTeam);
-        System.out.println();
-        System.out.println(awayTeam);
-        System.out.println();
-
-        // Running the match through the simulation engine
+        // Creating full squads
+        Team homeTeam = new Team("Arsenal FC", new ArrayList<>(Arrays.asList(
+            arsGk, arsDef1, arsDef2, arsDef3, arsDef4, arsMid1, arsMid2, arsMid3, arsAtk1, arsAtk2, arsAtk3
+        )));
+        
+        Team awayTeam = new Team("FC Barcelona", new ArrayList<>(Arrays.asList(
+            barGk, barDef1, barDef2, barDef3, barDef4, barMid1, barMid2, barMid3, barAtk1, barAtk2, barAtk3
+        )));
+        
+        Match match = new Match(homeTeam, awayTeam);
         SimulationEngine engine = new SimulationEngine();
-        Match match = engine.simulateMatch(homeTeam, awayTeam);
 
-        // Displaying final match result
+        LiveMatchRunner liveRunner = new LiveMatchRunner(
+            match,
+            engine,
+            1,
+            100,
+            (ArrayList<Event> newEvents) -> {
+                clearAboveLines(2);
+                for (Event event : newEvents) {
+                    System.out.println(event);
+                }
+                System.out.println();
+                System.out.println("Score: " + match.getScoreLine());
+            }
+        );
+
+        Thread matchThread = new Thread(liveRunner);
+        matchThread.start();
+
+        try {
+            matchThread.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        System.out.println();
         System.out.println("=== FINAL MATCH SUMMARY ===");
         System.out.println(match);
         System.out.println("Winner: " + match.getWinner());
         System.out.println();
 
-        // Displaying cards
-        System.out.println("=== CARD SUMMARY ===");
-        System.out.println("Yellow-carded players: " + match.getYellowCardedPlayers().size());
-        System.out.println("Red-carded players: " + match.getRedCardedPlayers().size());
-        System.out.println();
-
-        // Displaying timeline
         System.out.println("=== MATCH TIMELINE ===");
         System.out.println(match.getFormattedTimeline());
+    }
+
+    private static void clearConsole() {
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+    }
+
+    private static void clearAboveLines(int lines) {
+        for (int i = 0; i < lines; i++) System.out.print("\033[1A\033[K");
+        System.out.flush();
     }
 }

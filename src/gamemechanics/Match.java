@@ -6,11 +6,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 public class Match {
+    // Static fields
+    private static final int MATCH_LENGTH = 90;
+
     // Instance fields
     private final Team homeTeam;
     private final Team awayTeam;
     private int homeScore;
     private int awayScore;
+    private int currentMinute;
     private final ArrayList<Event> events;
     private final ArrayList<Player> yellowCardedPlayers;
     private final ArrayList<Player> redCardedPlayers;
@@ -25,6 +29,7 @@ public class Match {
         this.awayTeam = awayTeam;
         this.homeScore = 0;
         this.awayScore = 0;
+        this.currentMinute = 0;
         this.events = new ArrayList<>();
         this.yellowCardedPlayers = new ArrayList<>();
         this.redCardedPlayers = new ArrayList<>();
@@ -47,6 +52,14 @@ public class Match {
 
     public int getAwayScore() {
         return this.awayScore;
+    }
+
+    public int getCurrentMinute() {
+        return this.currentMinute;
+    }
+
+    public int getMatchLength() {
+        return MATCH_LENGTH;
     }
 
     public ArrayList<Event> getEvents() {
@@ -75,6 +88,7 @@ public class Match {
         if (this.started) throw new IllegalStateException("Match has already started.");
 
         this.started = true;
+        this.currentMinute = 0;
 
         addEvent(new Event(
             0,
@@ -85,13 +99,24 @@ public class Match {
         ));
     }
 
+    public void advanceMinute(int amount) {
+        validateMatchInProgress();
+
+        if (amount <= 0) throw new IllegalArgumentException("Minute amount must be greater than 0.");
+
+        this.currentMinute += amount;
+        if (this.currentMinute > MATCH_LENGTH) this.currentMinute = MATCH_LENGTH;
+    }
+
     public void endMatch() {
         if (!this.started) throw new IllegalStateException("Match cannot end before it starts.");
 
         if (this.finished) throw new IllegalStateException("Match has already finished.");
 
+        this.currentMinute = MATCH_LENGTH;
+
         addEvent(new Event(
-            90,
+            MATCH_LENGTH,
             EventType.FULL_TIME,
             null,
             null,
@@ -168,14 +193,16 @@ public class Match {
         if (this.finished) status = "Finished";
         else if (this.started) status = "In Progress";
         else status = "Not Started";
+
         String result = String.format("""
             Match Summary
             Home Team: %s
             Away Team: %s
             Score: %s
+            Minute: %d'
             Status: %s
             """
-            , this.homeTeam.getName(), this.awayTeam.getName(), getScoreLine(), status);
+            , this.homeTeam.getName(), this.awayTeam.getName(), getScoreLine(), this.currentMinute, status);
 
         return result;
     }
