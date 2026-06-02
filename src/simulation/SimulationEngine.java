@@ -30,15 +30,19 @@ public class SimulationEngine {
         if (match == null) throw new IllegalArgumentException("Match cannot be null.");
 
         while (!match.isFinished()) {
-            advanceMatch(match, 1);
+            advanceMatch(match, 1, true);
         }
     }
 
     public ArrayList<Event> advanceMatch(Match match) {
-        return advanceMatch(match, DEFAULT_ADVANCE_AMOUNT);
+        return advanceMatch(match, DEFAULT_ADVANCE_AMOUNT, true);
     }
 
     public ArrayList<Event> advanceMatch(Match match, int minuteAmount) {
+        return advanceMatch(match, minuteAmount, true);
+    }
+
+    public ArrayList<Event> advanceMatch(Match match, int minuteAmount, boolean autoResolveChoices) {
         if (match == null) throw new IllegalArgumentException("Match cannot be null.");
         if (minuteAmount <= 0) throw new IllegalArgumentException("Minute amount must be greater than 0.");
 
@@ -60,7 +64,7 @@ public class SimulationEngine {
 
             match.advanceMinute(1);
 
-            generateMinuteEvents(match, match.getCurrentMinute());
+            generateMinuteEvents(match, match.getCurrentMinute(), autoResolveChoices);
 
             if (match.getCurrentMinute() >= match.getMatchLength() && !match.isFinished()) {
                 match.endMatch();
@@ -75,7 +79,7 @@ public class SimulationEngine {
         return newEvents;
     }
 
-    private void generateMinuteEvents(Match match, int minute) {
+    private void generateMinuteEvents(Match match, int minute, boolean autoResolveChoices) {
         if (minute == 45) {
             match.addEvent(new Event(
                 minute,
@@ -101,10 +105,14 @@ public class SimulationEngine {
             createFoul(match, match.getOpponent(attackingTeam), minute);
         } else if (eventRoll <= 80) {
             event = createBigChance(match, attackingTeam, minute);
-            resolveChance(match, event, chooseRandomChoice(event));
+            if (autoResolveChoices) {
+                resolveChance(match, event, chooseRandomChoice(event));
+            }
         } else if (eventRoll <= 86) {
             event = createPenalty(match, attackingTeam, minute);
-            resolveChance(match, event, chooseRandomChoice(event));
+            if (autoResolveChoices) {
+                resolveChance(match, event, chooseRandomChoice(event));
+            }
         } else {
             match.addEvent(new Event(
                 minute,
@@ -284,7 +292,7 @@ public class SimulationEngine {
     /* */
 
     /* Chance Resolution Methods */
-    public void resolveChance(Match match, Event event, String selectedChoice) {
+    public ArrayList<Event> resolveChance(Match match, Event event, String selectedChoice) {
         if (match == null) throw new IllegalArgumentException("Match cannot be null.");
         match.validateMatchInProgress();
 
@@ -296,6 +304,7 @@ public class SimulationEngine {
         Team attackingTeam = event.getTeam();
         Team defendingTeam = match.getOpponent(attackingTeam);
         Player player = event.getPlayer();
+        ArrayList<Event> resolutionEvents = new ArrayList<>();
 
         event.setSelectedChoice(selectedChoice);
 
@@ -310,24 +319,32 @@ public class SimulationEngine {
         if (scored) {
             match.addGoal(attackingTeam);
 
-            match.addEvent(new Event(
+            Event goal = new Event(
                 event.getMinute(),
                 EventType.GOAL,
                 attackingTeam,
                 player,
                 player.getName() + " scored for " + attackingTeam.getName() + "!"
-            ));
+            );
+
+            match.addEvent(goal);
+            resolutionEvents.add(goal);
         } else {
             Player goalkeeper = defendingTeam.getGoalkeeper();
 
-            match.addEvent(new Event(
+            Event save = new Event(
                 event.getMinute(),
                 EventType.SAVE,
                 defendingTeam,
                 goalkeeper,
                 defendingTeam.getName() + " survived the chance from " + attackingTeam.getName() + "."
-            ));
+            );
+
+            match.addEvent(save);
+            resolutionEvents.add(save);
         }
+
+        return resolutionEvents;
     }
 
     public double calculateConversionChance(Match match, Player player, String selectedChoice, Team attackingTeam, Team defendingTeam) {
