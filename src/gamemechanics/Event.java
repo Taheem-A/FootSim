@@ -215,7 +215,7 @@ public class Event {
     // Overridden 'toString()' method
     @Override
     public String toString() {
-        String result = this.minute + "' [" + this.type + "] " + this.description;
+        String result = String.format("%2d", this.minute) + "' [" + this.type + "] " + this.description;
 
         if (this.bigChance && !this.selectedChoice.isEmpty()) {
             result += " | Choice: " + this.selectedChoice;
