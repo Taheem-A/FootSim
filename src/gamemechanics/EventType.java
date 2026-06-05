@@ -1,5 +1,10 @@
+// Exporting as package
 package gamemechanics;
 
+/* 
+    Event types for the football simulation
+    Enum was used to simplify event type handling and reduce erros from String types 
+*/
 public enum EventType {
     KICKOFF,
     SHOT,

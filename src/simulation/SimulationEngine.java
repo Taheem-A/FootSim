@@ -1,25 +1,21 @@
+//Exporting as package
 package simulation;
 
-import gamemechanics.Event;
-import gamemechanics.EventType;
-import gamemechanics.Match;
-import gamemechanics.Player;
-import gamemechanics.Team;
-import java.util.ArrayList;
-import java.util.Random;
+// Importing necessary classes
+import gamemechanics.*;
+import java.util.*;
 
 public class SimulationEngine {
+    // Constants and instance variables
     private static final int DEFAULT_ADVANCE_AMOUNT = 5;
     private final Random random;
 
+    // Main constructor
     public SimulationEngine() {
         this.random = new Random();
     }
 
-    public SimulationEngine(long seed) {
-        this.random = new Random(seed);
-    }
-
+    /* Simulation Methods */
     public Match simulateMatch(Team homeTeam, Team awayTeam) {
         Match match = new Match(homeTeam, awayTeam);
         simulateMatch(match);
@@ -33,7 +29,9 @@ public class SimulationEngine {
             advanceMatch(match, 1, true);
         }
     }
+    /* */
 
+    /* Overloaded advanceMatch methods for different use cases */
     public ArrayList<Event> advanceMatch(Match match) {
         return advanceMatch(match, DEFAULT_ADVANCE_AMOUNT, true);
     }
@@ -79,6 +77,10 @@ public class SimulationEngine {
         return newEvents;
     }
 
+    /* */
+
+
+    // Event generation method for each minute
     private void generateMinuteEvents(Match match, int minute, boolean autoResolveChoices) {
         if (minute == 45) {
             match.addEvent(new Event(
@@ -91,7 +93,6 @@ public class SimulationEngine {
             return;
         }
 
-        // Most minutes should have no major event. Otherwise the match becomes basketball in disguise.
         int eventChance = random.nextInt(100) + 1;
         if (eventChance > 24) return;
 
@@ -189,7 +190,6 @@ public class SimulationEngine {
 
         match.addEvent(foul);
 
-        // Small chance of a card after a foul
         int cardChance = random.nextInt(100) + 1;
 
         if (cardChance <= 5) {
@@ -291,7 +291,7 @@ public class SimulationEngine {
     }
     /* */
 
-    /* Chance Resolution Methods */
+    /* Chance resolution methods */
     public ArrayList<Event> resolveChance(Match match, Event event, String selectedChoice) {
         if (match == null) throw new IllegalArgumentException("Match cannot be null.");
         match.validateMatchInProgress();

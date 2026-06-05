@@ -22,7 +22,7 @@ public class Event {
         this(minute, type, team, player, description, false, new ArrayList<>());
     }
 
-    // Constructor for big chance / interactive events
+    // Constructor for big chance events
     public Event(int minute, EventType type, Team team, Player player, String description, boolean bigChance, ArrayList<String> choices) {
         this.minute = validateMinute(minute);
         this.type = validateType(type);
@@ -51,11 +51,12 @@ public class Event {
         }
     }
 
-    // Backwards-compatible constructors for older test code that still passes event types as strings
+    // Constructor overloaded to support previous String based code
     public Event(int minute, String type, Team team, Player player, String description) {
         this(minute, parseType(type), team, player, description, false, new ArrayList<>());
     }
 
+    // Constructor overloaded to support previous String based code for big chance events
     public Event(int minute, String type, Team team, Player player, String description, boolean bigChance, ArrayList<String> choices) {
         this(minute, parseType(type), team, player, description, bigChance, choices);
     }
@@ -106,7 +107,7 @@ public class Event {
     }
     /* */
 
-    /* Setters / Special Modifiers */
+    /* Setters / custom modifiers */
     public void setSelectedChoice(String selectedChoice) {
         if (!this.bigChance) {
             throw new IllegalStateException("Only big chance events can have a selected choice.");
@@ -142,7 +143,7 @@ public class Event {
     }
     /* */
 
-    /* Event Checking Methods */
+    /* Event checking methods */
     public boolean hasTeam() {
         return this.team != null;
     }
@@ -168,7 +169,7 @@ public class Event {
     }
     /* */
 
-    /* Validation Methods */
+    /* Validation methods */
     private int validateMinute(int minute) {
         if (minute < 0 || minute > 120) {
             throw new IllegalArgumentException("Minute must be between 0 and 120.");

@@ -1,5 +1,7 @@
+// Exporting as package
 package ui;
 
+// Importing all necessary classes
 import gamemechanics.Event;
 import gamemechanics.Match;
 import gamemechanics.Player;
@@ -11,6 +13,7 @@ import java.util.Scanner;
 import simulation.SimulationEngine;
 
 public class ConsoleUI {
+    // Colour constants
     private static final String RESET = "\033[0m";
     private static final String BRIGHT_BLACK = "\033[90m";
     private static final String BRIGHT_RED = "\033[91m";
@@ -18,16 +21,19 @@ public class ConsoleUI {
     private static final String BRIGHT_CYAN = "\033[96m";
     private static final String BRIGHT_YELLOW = "\033[93m";
 
+    // All necessary fields
     private final Scanner console;
     private final SimulationEngine engine;
     private Match currentMatch;
 
+    // Main constructor
     public ConsoleUI() {
         this.console = new Scanner(System.in);
         this.engine = new SimulationEngine();
         this.currentMatch = null;
     }
 
+    // Main method to start the console UI
     public void start() {
         int mainMenuChoice;
 
@@ -62,6 +68,7 @@ public class ConsoleUI {
         console.close();
     }
 
+    /* Main menu methods */
     private void runMatchMenu() {
         int matchMenuChoice;
         boolean returnToMainMenu = false;
@@ -184,6 +191,7 @@ public class ConsoleUI {
         System.out.println();
     }
 
+    // User choice processing
     private void resolveUserChoiceEvents(ArrayList<Event> events) {
         for (Event event : events) {
             if (event.isBigChance() && !event.isResolved()) {
@@ -203,6 +211,7 @@ public class ConsoleUI {
         }
     }
 
+    // User choice handling
     private String askForChanceChoice(Event event) {
         ArrayList<String> choices = event.getChoices();
 
@@ -220,6 +229,8 @@ public class ConsoleUI {
         return choices.get(choice - 1);
     }
 
+
+    /* Display methods for teams, timeline, main menu, match menu, and instructions */
     private void displayTeams() {
         clearConsole();
 
@@ -330,9 +341,11 @@ public class ConsoleUI {
             + "\n"
         );
     }
+    /* */
 
+    // Sample team creations
     private Match createSampleMatch() {
-        // === ARSENAL FC (Home Team) ===
+        // Arsenal FC (Home Team) pseudo-data
         Player arsGk   = new Player("David Raya", "GK", 83, 40, 80, 84, 48, 77);
         Player arsDef1 = new Player("William Saliba", "DEF", 81, 40, 70, 73, 87, 83);
         Player arsDef2 = new Player("Gabriel Magalhaes", "DEF", 69, 45, 62, 63, 86, 84);
@@ -345,7 +358,7 @@ public class ConsoleUI {
         Player arsAtk2 = new Player("Kai Havertz", "ATK", 80, 81, 79, 82, 47, 77);
         Player arsAtk3 = new Player("Leandro Trossard", "ATK", 78, 82, 80, 84, 34, 65);
 
-        // === FC BARCELONA (Away Team) ===
+        // FC Barcelona (Away Team) pseudo-data
         Player barGk   = new Player("Marc-André ter Stegen", "GK", 84, 83, 88, 87, 47, 85);
         Player barDef1 = new Player("Ronald Araújo", "DEF", 82, 49, 63, 65, 85, 84);
         Player barDef2 = new Player("Jules Koundé", "DEF", 80, 45, 74, 76, 84, 77);
@@ -369,6 +382,7 @@ public class ConsoleUI {
         return new Match(homeTeam, awayTeam);
     }
 
+    /* Helper methods */
     private String formatEvent(Event event) {
         String marker = "";
 
@@ -420,4 +434,6 @@ public class ConsoleUI {
         System.out.print("\033[H\033[2J");
         System.out.flush();
     }
+
+    /* */
 }

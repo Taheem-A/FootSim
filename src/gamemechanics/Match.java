@@ -83,7 +83,7 @@ public class Match {
     }
     /* */
 
-    /* Main Match State Methods */
+    // Main match methods
     public void startMatch() {
         if (this.started) throw new IllegalStateException("Match has already started.");
 
@@ -99,6 +99,7 @@ public class Match {
         ));
     }
 
+    // Advances the match minute by a specified amount
     public void advanceMinute(int amount) {
         validateMatchInProgress();
 
@@ -108,6 +109,7 @@ public class Match {
         if (this.currentMinute > MATCH_LENGTH) this.currentMinute = MATCH_LENGTH;
     }
 
+    // Ends the match and records a full time event
     public void endMatch() {
         if (!this.started) throw new IllegalStateException("Match cannot end before it starts.");
 
@@ -126,12 +128,14 @@ public class Match {
         this.finished = true;
     }
 
+    // Adds an event to the match
     public void addEvent(Event event) {
         if (event == null) throw new IllegalArgumentException("Event cannot be null.");
 
         this.events.add(event);
     }
 
+    // Adds a goal for a team
     public void addGoal(Team scoringTeam) {
         validateMatchInProgress();
         validateTeamInMatch(scoringTeam);
@@ -140,6 +144,9 @@ public class Match {
         else this.awayScore++;
     }
 
+
+
+    // Records a yellow card for a player
     public void recordYellowCard(Player player) {
         validateMatchInProgress();
         if (player == null) throw new IllegalArgumentException("Player cannot be null.");
@@ -149,6 +156,7 @@ public class Match {
         }
     }
 
+    // Records a red card for a player
     public void recordRedCard(Player player) {
         validateMatchInProgress();
         if (player == null) throw new IllegalArgumentException("Player cannot be null.");
@@ -161,7 +169,7 @@ public class Match {
     }
     /* */
 
-    /* Display Methods */
+    /* Display methods */
     public String getScoreLine() {
         return this.homeTeam.getName() + " " + this.homeScore + " - " + this.awayScore + " " + this.awayTeam.getName();
     }
@@ -187,6 +195,7 @@ public class Match {
         return result;
     }
 
+    // Overridden 'toString()' method
     @Override
     public String toString() {
         String status;
