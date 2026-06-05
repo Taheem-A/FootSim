@@ -37,6 +37,8 @@ public class ConsoleUI {
     public void start() {
         int mainMenuChoice;
 
+        clearConsole();
+
         do {
             displayMainMenu();
             mainMenuChoice = validateInput("Your choice: ", 1, 4);
