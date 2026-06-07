@@ -5,6 +5,17 @@ package gamemechanics;
 import java.util.ArrayList;
 
 public class Event {
+    // Colour constants
+    private static final String RESET = "\033[0m";
+    private static final String BRIGHT_BLACK = "\033[90m";
+    private static final String BRIGHT_RED = "\033[91m";
+    private static final String RED = "\033[31m";
+    private static final String BRIGHT_GREEN = "\033[92m";
+    private static final String GREEN = "\033[32m";
+    private static final String BRIGHT_CYAN = "\033[96m";
+    private static final String BRIGHT_YELLOW = "\033[93m";
+    private static final String YELLOW = "\033[33m";
+
     // Instance fields
     private int minute;
     private EventType type;
@@ -216,14 +227,24 @@ public class Event {
     // Overridden 'toString()' method
     @Override
     public String toString() {
-        String result = String.format("%2d", this.minute) + "' [" + this.type + "] " + this.description;
+        String eventTypeColour = switch (this.type) {
+            case GOAL -> GREEN;
+            case PENALTY -> BRIGHT_GREEN;
+            case YELLOW_CARD -> BRIGHT_YELLOW;
+            case RED_CARD -> BRIGHT_RED;
+            case SHOT, BIG_CHANCE -> BRIGHT_CYAN;
+            case MISS -> RED;
+            case FOUL -> YELLOW;
+            default -> BRIGHT_BLACK;
+        };
+        String result = String.format("%2d", this.minute) + "' [" + eventTypeColour + this.type + RESET + "] " + this.description;
 
         if (this.bigChance && !this.selectedChoice.isEmpty()) {
             result += " | Choice: " + this.selectedChoice;
         }
 
         if (this.bigChance && this.resolved) {
-            result += this.successful ? " | Successful" : " | Unsuccessful";
+            result += this.successful ? " | " + BRIGHT_GREEN + "Successful" + RESET : " | " + BRIGHT_RED + "Unsuccessful" + RESET;
         }
 
         return result;

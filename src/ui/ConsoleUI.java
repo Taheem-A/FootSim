@@ -4,10 +4,11 @@ package ui;
 // Importing all necessary classes
 import gamemechanics.Event;
 import gamemechanics.Match;
-import gamemechanics.Player;
+import gamemechanics.MatchHistory;
 import gamemechanics.Team;
+import gamemechanics.TeamFactory;
+import gamemechanics.Tournament;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.InputMismatchException;
 import java.util.Scanner;
 import simulation.SimulationEngine;
@@ -24,12 +25,16 @@ public class ConsoleUI {
     // All necessary fields
     private final Scanner console;
     private final SimulationEngine engine;
+    private final MatchHistory matchHistory;
+    private final ArrayList<Team> availableTeams;
     private Match currentMatch;
 
     // Main constructor
     public ConsoleUI() {
         this.console = new Scanner(System.in);
         this.engine = new SimulationEngine();
+        this.matchHistory = new MatchHistory();
+        this.availableTeams = TeamFactory.createDefaultTeams();
         this.currentMatch = null;
     }
 
@@ -41,23 +46,19 @@ public class ConsoleUI {
 
         do {
             displayMainMenu();
-            mainMenuChoice = validateInput("Your choice: ", 1, 4);
+            mainMenuChoice = validateInput("Your choice: ", 1, 7);
 
             switch (mainMenuChoice) {
-                case 1 -> {
-                    this.currentMatch = createSampleMatch();
-                    runMatchMenu();
+                case 1 -> runQuickMatch();
+                case 2 -> runCustomMatch();
+                case 3 -> runKnockoutTournament();
+                case 4 -> runGroupStageTournament();
+                case 5 -> {
+                    displayTeamList();
+                    pause();
                 }
-                case 2 -> {
-                    if (this.currentMatch == null) {
-                        System.out.println(RESET + "No match has been created yet. " + BRIGHT_BLACK + "[ENTER]" + RESET);
-                        console.nextLine();
-                    } else {
-                        runMatchMenu();
-                    }
-                }
-                case 3 -> {
-                    displayInstructions();
+                case 6 -> {
+                    displayMatchHistory();
                     pause();
                 }
                 default -> {
@@ -65,13 +66,96 @@ public class ConsoleUI {
                     System.out.println(RESET + "See you soon!");
                 }
             }
-        } while (mainMenuChoice != 4);
+        } while (mainMenuChoice != 7);
 
         console.close();
     }
 
-    /* Main menu methods */
-    private void runMatchMenu() {
+    /* Game mode methods */
+    private void runQuickMatch() {
+        Team homeTeam = TeamFactory.getRandomTeam(availableTeams, null);
+        Team awayTeam = TeamFactory.getRandomTeam(availableTeams, homeTeam);
+
+        this.currentMatch = new Match(homeTeam, awayTeam);
+        runMatchCentre();
+    }
+
+    private void runCustomMatch() {
+        clearConsole();
+        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
+        System.out.println("║          CUSTOM MATCH SETUP          ║");
+        System.out.println("╚══════════════════════════════════════╝" + RESET);
+        System.out.println();
+
+        System.out.println(BRIGHT_YELLOW + "Choose the home team:" + RESET);
+        Team homeTeam = chooseTeam(null);
+
+        System.out.println();
+        System.out.println(BRIGHT_YELLOW + "Choose the away team:" + RESET);
+        Team awayTeam = chooseTeam(homeTeam);
+
+        this.currentMatch = new Match(homeTeam, awayTeam);
+        runMatchCentre();
+    }
+
+    private void runKnockoutTournament() {
+        clearConsole();
+        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
+        System.out.println("║        KNOCKOUT TOURNAMENT MODE      ║");
+        System.out.println("╚══════════════════════════════════════╝" + RESET);
+        System.out.println();
+
+        System.out.println("A 4-team knockout tournament will be simulated.");
+        System.out.println("Semi-Finals → Final → Champion");
+        System.out.println();
+
+        ArrayList<Team> selectedTeams = chooseMultipleTeams(4);
+        Tournament tournament = new Tournament("FootSim Cup", selectedTeams, engine);
+
+        Team champion = tournament.simulateKnockoutTournament();
+
+        for (Match match : tournament.getMatches()) {
+            matchHistory.addMatch(match);
+        }
+
+        clearConsole();
+        System.out.println(BRIGHT_GREEN + "Tournament complete!" + RESET);
+        System.out.println();
+        System.out.println(tournament.getFormattedReport());
+        System.out.println(BRIGHT_YELLOW + "Champion: " + champion.getName() + RESET);
+        pause();
+    }
+
+    private void runGroupStageTournament() {
+        clearConsole();
+        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
+        System.out.println("║     GROUP STAGE + KNOCKOUT MODE      ║");
+        System.out.println("╚══════════════════════════════════════╝" + RESET);
+        System.out.println();
+
+        System.out.println("An 8-team tournament will be simulated.");
+        System.out.println("2 groups of 4 → top 2 qualify → semi-finals → final");
+        System.out.println();
+
+        ArrayList<Team> selectedTeams = chooseMultipleTeams(8);
+        Tournament tournament = new Tournament("FootSim Champions Cup", selectedTeams, engine);
+
+        Team champion = tournament.simulateGroupStageAndKnockout();
+
+        for (Match match : tournament.getMatches()) {
+            matchHistory.addMatch(match);
+        }
+
+        clearConsole();
+        System.out.println(BRIGHT_GREEN + "Tournament complete!" + RESET);
+        System.out.println();
+        System.out.println(tournament.getFormattedReport());
+        System.out.println(BRIGHT_YELLOW + "Champion: " + champion.getName() + RESET);
+        pause();
+    }
+
+    /* Match centre methods */
+    private void runMatchCentre() {
         int matchMenuChoice;
         boolean returnToMainMenu = false;
 
@@ -91,9 +175,8 @@ public class ConsoleUI {
                     pause();
                 }
                 case 5 -> {
-                    this.currentMatch = createSampleMatch();
-                    System.out.println(RESET + "New match created. " + BRIGHT_BLACK + "[ENTER]" + RESET);
-                    console.nextLine();
+                    displayMatchSummary();
+                    pause();
                 }
                 default -> returnToMainMenu = true;
             }
@@ -103,11 +186,7 @@ public class ConsoleUI {
     private void watchLiveMatch() {
         clearConsole();
 
-        if (this.currentMatch == null) {
-            System.out.println(RESET + "No match has been created yet. " + BRIGHT_BLACK + "[ENTER]" + RESET);
-            console.nextLine();
-            return;
-        }
+        if (!checkMatchExists()) return;
 
         if (this.currentMatch.isFinished()) {
             System.out.println(RESET + "This match has already finished. " + BRIGHT_BLACK + "[ENTER]" + RESET);
@@ -150,21 +229,17 @@ public class ConsoleUI {
             Thread.currentThread().interrupt();
         }
 
+        addCurrentMatchToHistory();
         System.out.println();
         System.out.println(BRIGHT_GREEN + "Match finished!" + RESET);
-        System.out.println("Final Score: " + currentMatch.getScoreLine());
-        System.out.println("Winner: " + currentMatch.getWinner());
+        displayMatchSummary();
         pause();
     }
 
     private void simulateRestOfMatch() {
         clearConsole();
 
-        if (this.currentMatch == null) {
-            System.out.println(RESET + "No match has been created yet. " + BRIGHT_BLACK + "[ENTER]" + RESET);
-            console.nextLine();
-            return;
-        }
+        if (!checkMatchExists()) return;
 
         if (this.currentMatch.isFinished()) {
             System.out.println(RESET + "This match has already finished. " + BRIGHT_BLACK + "[ENTER]" + RESET);
@@ -177,10 +252,10 @@ public class ConsoleUI {
         System.out.println();
 
         engine.simulateMatch(this.currentMatch);
+        addCurrentMatchToHistory();
 
         System.out.println(BRIGHT_GREEN + "Simulation complete!" + RESET);
-        System.out.println("Final Score: " + currentMatch.getScoreLine());
-        System.out.println("Winner: " + currentMatch.getWinner());
+        displayMatchSummary();
         pause();
     }
 
@@ -231,10 +306,78 @@ public class ConsoleUI {
         return choices.get(choice - 1);
     }
 
+    /* Display methods */
+    private void displayMainMenu() {
+        clearConsole();
 
-    /* Display methods for teams, timeline, main menu, match menu, and instructions */
+        System.out.print(RESET
+                   + "╔══════════════════════════════════════╗"
+            + "\n" + "║          FOOTSIM - MAIN MENU         ║"
+            + "\n" + "╚══════════════════════════════════════╝"
+            + "\n"
+            + "\n" + " [1] Quick Match"
+            + "\n" + " [2] Custom Match"
+            + "\n" + " [3] Knockout Tournament"
+            + "\n" + " [4] Group Stage + Knockout Tournament"
+            + "\n" + " [5] View Teams"
+            + "\n" + " [6] Match History"
+            + "\n" + " [7] Quit"
+            + "\n"
+            + "\n" + "────────────────────────────────────────"
+            + "\n"
+        );
+    }
+
+    private void displayMatchMenu() {
+        clearConsole();
+
+        String scoreLine = currentMatch.getScoreLine();
+        String status = getMatchStatus();
+        int currentMinute = currentMatch.getCurrentMinute();
+
+        System.out.printf(RESET
+                   + "╔══════════════════════════════════════╗"
+            + "\n" + "║       FOOTSIM - MATCH CENTRE         ║"
+            + "\n" + "╚══════════════════════════════════════╝"
+            + "\n"
+            + "\n" + " %s"
+            + "\n" + " Minute: %d'"
+            + "\n" + " Status: %s"
+            + "\n"
+            + "\n" + "╔══════════════════════════════════════╗"
+            + "\n" + "║ [1] Watch Live Match                 ║"
+            + "\n" + "║ [2] Simulate Rest Instantly          ║"
+            + "\n" + "║ [3] View Teams                       ║"
+            + "\n" + "║ [4] View Match Timeline              ║"
+            + "\n" + "║ [5] View Match Summary               ║"
+            + "\n" + "║ [6] Main Menu                        ║"
+            + "\n" + "╚══════════════════════════════════════╝"
+            + "\n"
+            + "\n",
+            scoreLine,
+            currentMinute,
+            status
+        );
+    }
+
+    private void displayTeamList() {
+        clearConsole();
+
+        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
+        System.out.println("║            AVAILABLE TEAMS           ║");
+        System.out.println("╚══════════════════════════════════════╝" + RESET);
+        System.out.println();
+
+        for (int i = 0; i < availableTeams.size(); i++) {
+            Team team = availableTeams.get(i);
+            System.out.printf("[%d] %-24s Overall: %d%n", i + 1, team.getName(), roundVal(team.getAverageOverallRating()));
+        }
+    }
+
     private void displayTeams() {
         clearConsole();
+
+        if (!checkMatchExists()) return;
 
         System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
         System.out.println("║             TEAM INFORMATION         ║");
@@ -253,138 +396,132 @@ public class ConsoleUI {
     private void displayTimeline() {
         clearConsole();
 
+        if (!checkMatchExists()) return;
+
         System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
         System.out.println("║             MATCH TIMELINE           ║");
         System.out.println("╚══════════════════════════════════════╝" + RESET);
         System.out.println();
 
-        if (currentMatch == null) {
-            System.out.println("No match has been created yet.");
-        } else {
-            System.out.println(currentMatch.getFormattedTimeline());
+        System.out.println(currentMatch.getFormattedTimeline());
+    }
+
+    private void displayMatchSummary() {
+        if (!checkMatchExists()) return;
+
+        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
+        System.out.println("║             MATCH SUMMARY            ║");
+        System.out.println("╚══════════════════════════════════════╝" + RESET);
+        System.out.println();
+
+        System.out.println("Final Score: " + currentMatch.getScoreLine());
+        System.out.println("Winner: " + currentMatch.getWinner());
+        System.out.println("Yellow Cards: " + currentMatch.getYellowCardedPlayers().size());
+        System.out.println("Red Cards: " + currentMatch.getRedCardedPlayers().size());
+        System.out.println();
+
+        System.out.println(BRIGHT_YELLOW + "Goal Events:" + RESET);
+
+        boolean foundGoal = false;
+        for (Event event : currentMatch.getEvents()) {
+            if (event.isGoal()) {
+                System.out.println("- " + event);
+                foundGoal = true;
+            }
         }
+
+        if (!foundGoal) System.out.println("- No goals scored.");
     }
 
-    private void displayMainMenu() {
+    private void displayMatchHistory() {
         clearConsole();
 
-        System.out.print(RESET
-                   + "╔══════════════════════════════════╗"
-            + "\n" + "║        FOOTSIM - Main Menu       ║"
-            + "\n" + "╚══════════════════════════════════╝"
-            + "\n"
-            + "\n" + " [1] New Match"
-            + "\n" + " [2] Continue Match"
-            + "\n" + " [3] Instructions"
-            + "\n" + " [4] Quit"
-            + "\n"
-            + "\n" + "────────────────────────────────────"
-            + "\n"
-        );
+        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
+        System.out.println("║             MATCH HISTORY            ║");
+        System.out.println("╚══════════════════════════════════════╝" + RESET);
+        System.out.println();
+
+        System.out.println(matchHistory.getFormattedHistory());
     }
 
-    private void displayMatchMenu() {
-        clearConsole();
+    /* Team selection methods */
+    private Team chooseTeam(Team excludedTeam) {
+        for (int i = 0; i < availableTeams.size(); i++) {
+            Team team = availableTeams.get(i);
+            String unavailable = team == excludedTeam ? " " + BRIGHT_BLACK + "(already selected)" + RESET : "";
+            System.out.printf("[%d] %-24s%s%n", i + 1, team.getName(), unavailable);
+        }
 
-        String scoreLine = currentMatch.getScoreLine();
-        String status = getMatchStatus();
-        int currentMinute = currentMatch.getCurrentMinute();
+        int choice;
+        Team selectedTeam;
 
-        System.out.printf(RESET
-                   + "╔══════════════════════════════════════╗"
-            + "\n" + "║       FOOTSIM - Match Centre         ║"
-            + "\n" + "╚══════════════════════════════════════╝"
-            + "\n"
-            + "\n" + " %s"
-            + "\n" + " Minute: %d'"
-            + "\n" + " Status: %s"
-            + "\n"
-            + "\n" + "╔══════════════════════════════════════╗"
-            + "\n" + "║ [1] Watch Live Match                 ║"
-            + "\n" + "║ [2] Simulate Rest Instantly          ║"
-            + "\n" + "║ [3] View Teams                       ║"
-            + "\n" + "║ [4] View Match Timeline              ║"
-            + "\n" + "║ [5] New Match                        ║"
-            + "\n" + "║ [6] Main Menu                        ║"
-            + "\n" + "╚══════════════════════════════════════╝"
-            + "\n"
-            + "\n",
-            scoreLine,
-            currentMinute,
-            status
-        );
+        do {
+            choice = validateInput("Choose team: ", 1, availableTeams.size());
+            selectedTeam = availableTeams.get(choice - 1);
+
+            if (selectedTeam == excludedTeam) {
+                System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " Choose a different team.");
+            }
+        } while (selectedTeam == excludedTeam);
+
+        return selectedTeam;
     }
 
-    private void displayInstructions() {
-        clearConsole();
+    private ArrayList<Team> chooseMultipleTeams(int numberOfTeams) {
+        ArrayList<Team> selectedTeams = new ArrayList<>();
 
-        System.out.println(RESET
-            + "╔═════════════════════════════════════════════════════════════════════╗"
-            + "\n" + "║ " + BRIGHT_BLACK + "OBJECTIVE" + RESET + "                                                           ║"
-            + "\n" + "║  FootSim simulates a football match using player and team ratings.  ║"
-            + "\n" + "║  The goal is to demonstrate how the Player, Team, Match, Event,     ║"
-            + "\n" + "║  SimulationEngine, and live match logic work together.              ║"
-            + "\n" + "╠═════════════════════════════════════════════════════════════════════╣"
-            + "\n" + "║ " + BRIGHT_BLACK + "LIVE MATCH" + RESET + "                                                          ║"
-            + "\n" + "║  Watch Live Match advances the match one simulated minute at a time.║"
-            + "\n" + "║  Goals, fouls, cards, penalties, and big chances can occur.         ║"
-            + "\n" + "╠═════════════════════════════════════════════════════════════════════╣"
-            + "\n" + "║ " + BRIGHT_BLACK + "USER CHOICES" + RESET + "                                                        ║"
-            + "\n" + "║  During big chances and penalties, you choose what the player does. ║"
-            + "\n" + "║  The simulation engine uses the selected choice and player ratings  ║"
-            + "\n" + "║  to decide whether the chance succeeds or fails.                    ║"
-            + "\n" + "╠═════════════════════════════════════════════════════════════════════╣"
-            + "\n" + "║ " + BRIGHT_BLACK + "MENU OPTIONS" + RESET + "                                                        ║"
-            + "\n" + "║  New Match creates a new Arsenal vs Barcelona pseudo-data match.    ║"
-            + "\n" + "║  Continue Match returns to the current match if one exists.         ║"
-            + "\n" + "║  View Teams shows player rosters and calculated team ratings.       ║"
-            + "\n" + "║  View Timeline shows all events recorded so far.                    ║"
-            + "\n" + "╚═════════════════════════════════════════════════════════════════════╝"
-            + "\n"
-        );
+        for (int i = 0; i < numberOfTeams; i++) {
+            System.out.println(BRIGHT_YELLOW + "Choose team " + (i + 1) + " of " + numberOfTeams + ":" + RESET);
+
+            Team selectedTeam = chooseTeamFromRemaining(selectedTeams);
+            selectedTeams.add(selectedTeam);
+
+            System.out.println(selectedTeam.getName() + " added.");
+            System.out.println();
+        }
+
+        return selectedTeams;
     }
-    /* */
 
-    // Sample team creations
-    private Match createSampleMatch() {
-        // Arsenal FC (Home Team) pseudo-data
-        Player arsGk   = new Player("David Raya", "GK", 83, 40, 80, 84, 48, 77);
-        Player arsDef1 = new Player("William Saliba", "DEF", 81, 40, 70, 73, 87, 83);
-        Player arsDef2 = new Player("Gabriel Magalhaes", "DEF", 69, 45, 62, 63, 86, 84);
-        Player arsDef3 = new Player("Ben White", "DEF", 77, 54, 76, 77, 82, 76);
-        Player arsDef4 = new Player("Jurriën Timber", "DEF", 79, 53, 71, 79, 80, 78);
-        Player arsMid1 = new Player("Declan Rice", "MID", 75, 66, 77, 79, 83, 83);
-        Player arsMid2 = new Player("Martin Odegaard", "MID", 76, 81, 89, 88, 58, 64);
-        Player arsMid3 = new Player("Mikel Merino", "MID", 67, 75, 77, 80, 79, 81);
-        Player arsAtk1 = new Player("Bukayo Saka", "ATK", 86, 81, 83, 87, 45, 69);
-        Player arsAtk2 = new Player("Kai Havertz", "ATK", 80, 81, 79, 82, 47, 77);
-        Player arsAtk3 = new Player("Leandro Trossard", "ATK", 78, 82, 80, 84, 34, 65);
+    private Team chooseTeamFromRemaining(ArrayList<Team> selectedTeams) {
+        for (int i = 0; i < availableTeams.size(); i++) {
+            Team team = availableTeams.get(i);
+            String unavailable = selectedTeams.contains(team) ? " " + BRIGHT_BLACK + "(already selected)" + RESET : "";
+            System.out.printf("[%d] %-24s%s%n", i + 1, team.getName(), unavailable);
+        }
 
-        // FC Barcelona (Away Team) pseudo-data
-        Player barGk   = new Player("Marc-André ter Stegen", "GK", 84, 83, 88, 87, 47, 85);
-        Player barDef1 = new Player("Ronald Araújo", "DEF", 82, 49, 63, 65, 85, 84);
-        Player barDef2 = new Player("Jules Koundé", "DEF", 80, 45, 74, 76, 84, 77);
-        Player barDef3 = new Player("Pau Cubarsí", "DEF", 68, 33, 72, 70, 79, 66);
-        Player barDef4 = new Player("Alejandro Balde", "DEF", 91, 47, 71, 78, 74, 64);
-        Player barMid1 = new Player("Frenkie de Jong", "MID", 79, 69, 85, 87, 77, 78);
-        Player barMid2 = new Player("Pedri", "MID", 77, 70, 86, 87, 69, 64);
-        Player barMid3 = new Player("Gavi", "MID", 77, 68, 77, 83, 72, 72);
-        Player barAtk1 = new Player("Robert Lewandowski", "ATK", 75, 88, 71, 84, 45, 81);
-        Player barAtk2 = new Player("Lamine Yamal", "ATK", 84, 77, 78, 86, 33, 53);
-        Player barAtk3 = new Player("Raphinha", "ATK", 89, 80, 80, 85, 54, 73);
+        int choice;
+        Team selectedTeam;
 
-        Team homeTeam = new Team("Arsenal FC", new ArrayList<>(Arrays.asList(
-            arsGk, arsDef1, arsDef2, arsDef3, arsDef4, arsMid1, arsMid2, arsMid3, arsAtk1, arsAtk2, arsAtk3
-        )));
+        do {
+            choice = validateInput("Choose team: ", 1, availableTeams.size());
+            selectedTeam = availableTeams.get(choice - 1);
 
-        Team awayTeam = new Team("FC Barcelona", new ArrayList<>(Arrays.asList(
-            barGk, barDef1, barDef2, barDef3, barDef4, barMid1, barMid2, barMid3, barAtk1, barAtk2, barAtk3
-        )));
+            if (selectedTeams.contains(selectedTeam)) {
+                System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " This team has already been selected.");
+            }
+        } while (selectedTeams.contains(selectedTeam));
 
-        return new Match(homeTeam, awayTeam);
+        return selectedTeam;
     }
 
     /* Helper methods */
+    private void addCurrentMatchToHistory() {
+        if (currentMatch != null && currentMatch.isFinished() && !matchHistory.getMatches().contains(currentMatch)) {
+            matchHistory.addMatch(currentMatch);
+        }
+    }
+
+    private boolean checkMatchExists() {
+        if (this.currentMatch == null) {
+            System.out.println(RESET + "No match has been created yet. " + BRIGHT_BLACK + "[ENTER]" + RESET);
+            console.nextLine();
+            return false;
+        }
+
+        return true;
+    }
+
     private String formatEvent(Event event) {
         String marker = "";
 
@@ -427,6 +564,10 @@ public class ConsoleUI {
         return input;
     }
 
+    private int roundVal(double val) {
+        return (int) Math.round(val);
+    }
+
     private void pause() {
         System.out.println(BRIGHT_BLACK + "[ENTER]" + RESET);
         console.nextLine();
@@ -436,6 +577,4 @@ public class ConsoleUI {
         System.out.print("\033[H\033[2J\033[3J");
         System.out.flush();
     }
-
-    /* */
 }
