@@ -8,6 +8,8 @@ import java.util.Collections;
 public class Match {
     // Static fields
     private static final int MATCH_LENGTH = 90;
+    private static final int MIN_MOMENTUM = -40;
+    private static final int MAX_MOMENTUM = 40;
 
     // Instance fields
     private final Team homeTeam;
@@ -18,6 +20,10 @@ public class Match {
     private final ArrayList<Event> events;
     private final ArrayList<Player> yellowCardedPlayers;
     private final ArrayList<Player> redCardedPlayers;
+    private TeamTactics homeTactics;
+    private TeamTactics awayTactics;
+    private int homeMomentum;
+    private int awayMomentum;
     private boolean started;
     private boolean finished;
 
@@ -33,6 +39,10 @@ public class Match {
         this.events = new ArrayList<>();
         this.yellowCardedPlayers = new ArrayList<>();
         this.redCardedPlayers = new ArrayList<>();
+        this.homeTactics = new TeamTactics();
+        this.awayTactics = new TeamTactics();
+        this.homeMomentum = 0;
+        this.awayMomentum = 0;
         this.started = false;
         this.finished = false;
     }
@@ -74,12 +84,92 @@ public class Match {
         return new ArrayList<>(this.redCardedPlayers);
     }
 
+    public TeamTactics getHomeTactics() {
+        return this.homeTactics.copy();
+    }
+
+    public TeamTactics getAwayTactics() {
+        return this.awayTactics.copy();
+    }
+
+    public TeamTactics getTactics(Team team) {
+        validateTeamInMatch(team);
+        return isHomeTeam(team) ? this.homeTactics : this.awayTactics;
+    }
+
+    public int getHomeMomentum() {
+        return this.homeMomentum;
+    }
+
+    public int getAwayMomentum() {
+        return this.awayMomentum;
+    }
+
+    public int getMomentum(Team team) {
+        validateTeamInMatch(team);
+        return isHomeTeam(team) ? this.homeMomentum : this.awayMomentum;
+    }
+
     public boolean hasStarted() {
         return this.started;
     }
 
     public boolean isFinished() {
         return this.finished;
+    }
+    /* */
+
+    /* Tactics and momentum methods */
+    public void setTactics(Team team, TeamTactics tactics) {
+        validateTeamInMatch(team);
+        if (tactics == null) throw new IllegalArgumentException("Tactics cannot be null.");
+
+        if (isHomeTeam(team)) this.homeTactics = tactics.copy();
+        else this.awayTactics = tactics.copy();
+    }
+
+    public void applyManagerDecision(Team team, ManagerDecision decision) {
+        validateTeamInMatch(team);
+        if (decision == null) throw new IllegalArgumentException("Manager decision cannot be null.");
+
+        getTactics(team).applyManagerDecision(decision);
+
+        if (isHomeTeam(team)) this.homeTactics.applyManagerDecision(decision);
+        else this.awayTactics.applyManagerDecision(decision);
+
+        adjustMomentum(team, decision.getMomentumChange());
+    }
+
+    public void applyTeamTalk(Team team, TeamTalk talk) {
+        validateTeamInMatch(team);
+        if (talk == null) throw new IllegalArgumentException("Team talk cannot be null.");
+
+        boolean losing = (isHomeTeam(team) && homeScore < awayScore) || (!isHomeTeam(team) && awayScore < homeScore);
+        boolean winning = (isHomeTeam(team) && homeScore > awayScore) || (!isHomeTeam(team) && awayScore > homeScore);
+
+        int momentumChange;
+
+        if (isHomeTeam(team)) momentumChange = this.homeTactics.applyTeamTalk(talk, losing, winning);
+        else momentumChange = this.awayTactics.applyTeamTalk(talk, losing, winning);
+
+        adjustMomentum(team, momentumChange);
+    }
+
+    public void adjustMomentum(Team team, int amount) {
+        validateTeamInMatch(team);
+
+        if (isHomeTeam(team)) this.homeMomentum = clampMomentum(this.homeMomentum + amount);
+        else this.awayMomentum = clampMomentum(this.awayMomentum + amount);
+    }
+
+    public String getMomentumDescription(Team team) {
+        int momentum = getMomentum(team);
+
+        if (momentum >= 25) return "Dominating momentum";
+        if (momentum >= 10) return "Building momentum";
+        if (momentum <= -25) return "Under heavy pressure";
+        if (momentum <= -10) return "Losing momentum";
+        return "Balanced momentum";
     }
     /* */
 
@@ -112,7 +202,6 @@ public class Match {
     // Ends the match and records a full time event
     public void endMatch() {
         if (!this.started) throw new IllegalStateException("Match cannot end before it starts.");
-
         if (this.finished) throw new IllegalStateException("Match has already finished.");
 
         this.currentMinute = MATCH_LENGTH;
@@ -140,11 +229,14 @@ public class Match {
         validateMatchInProgress();
         validateTeamInMatch(scoringTeam);
 
+        Team concedingTeam = getOpponent(scoringTeam);
+
         if (isHomeTeam(scoringTeam)) this.homeScore++;
         else this.awayScore++;
+
+        adjustMomentum(scoringTeam, 14);
+        adjustMomentum(concedingTeam, -10);
     }
-
-
 
     // Records a yellow card for a player
     public void recordYellowCard(Player player) {
@@ -210,8 +302,13 @@ public class Match {
             Score: %s
             Minute: %d'
             Status: %s
+            Home Tactics: %s
+            Away Tactics: %s
+            Home Momentum: %s
+            Away Momentum: %s
             """
-            , this.homeTeam.getName(), this.awayTeam.getName(), getScoreLine(), this.currentMinute, status);
+            , this.homeTeam.getName(), this.awayTeam.getName(), getScoreLine(), this.currentMinute, status,
+            this.homeTactics, this.awayTactics, getMomentumDescription(homeTeam), getMomentumDescription(awayTeam));
 
         return result;
     }
@@ -220,13 +317,11 @@ public class Match {
     /* Helper Methods */
     private void validateTeams(Team homeTeam, Team awayTeam) {
         if (homeTeam == null || awayTeam == null) throw new IllegalArgumentException("Both teams must exist.");
-
         if (homeTeam == awayTeam) throw new IllegalArgumentException("A team cannot play against itself.");
     }
 
     public void validateMatchInProgress() {
         if (!this.started) throw new IllegalStateException("Match has not started yet.");
-
         if (this.finished) throw new IllegalStateException("Match has already finished.");
     }
 
@@ -244,21 +339,27 @@ public class Match {
 
     public Team getOpponent(Team team) {
         validateTeamInMatch(team);
-
         if (isHomeTeam(team)) return this.awayTeam;
-
         return this.homeTeam;
+    }
+
+    private int clampMomentum(int momentum) {
+        if (momentum < MIN_MOMENTUM) return MIN_MOMENTUM;
+        if (momentum > MAX_MOMENTUM) return MAX_MOMENTUM;
+        return momentum;
     }
 
     private boolean findPlayer(Player player, ArrayList<Player> playerList) {
         if (player == null || playerList == null) {
             throw new IllegalArgumentException("Player and player list cannot be null.");
         }
+
         for (Player p : playerList) {
             if (p.getName().equalsIgnoreCase(player.getName())) {
                 return true;
             }
         }
+
         return false;
     }
     /* */

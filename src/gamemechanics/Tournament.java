@@ -20,6 +20,7 @@ public class Tournament {
     private final ArrayList<String> log;
     private final SimulationEngine engine;
     private final Random random;
+    private TournamentMatchRunner matchRunner;
     private Team userTeam;
     private Team champion;
 
@@ -40,8 +41,13 @@ public class Tournament {
         this.log = new ArrayList<>();
         this.engine = engine;
         this.random = new Random();
+        this.matchRunner = null;
         this.userTeam = userTeam;
         this.champion = null;
+    }
+
+    public void setMatchRunner(TournamentMatchRunner matchRunner) {
+        this.matchRunner = matchRunner;
     }
 
     /* Main tournament simulation methods */
@@ -148,17 +154,14 @@ public class Tournament {
     /* */
 
     /* Getters */
-    // Returns all matches played in the tournament.
     public ArrayList<Match> getMatches() {
         return new ArrayList<>(this.matches);
     }
 
-    // Returns the tournament champion after simulation.
     public Team getChampion() {
         return this.champion;
     }
 
-    // Returns a formatted tournament report.
     public String getFormattedReport() {
         if (this.log.isEmpty()) return "Tournament has not been simulated yet.";
 
@@ -173,7 +176,6 @@ public class Tournament {
     /* */
 
     /* Classic group stage methods */
-    // Simulates one four-team group and returns the sorted standings.
     private ArrayList<TournamentStanding> simulateGroup(String groupName, ArrayList<Team> groupTeams) {
         ArrayList<TournamentStanding> standings = createStandings(groupTeams);
 
@@ -191,7 +193,7 @@ public class Tournament {
                 Team homeTeam = groupTeams.get(i);
                 Team awayTeam = groupTeams.get(j);
 
-                Match match = engine.simulateMatch(homeTeam, awayTeam);
+                Match match = playTournamentMatch(homeTeam, awayTeam);
                 matches.add(match);
                 updateStandings(standings, match);
 
@@ -212,7 +214,6 @@ public class Tournament {
         return standings;
     }
 
-    // Builds a Round of 16 draw where group winners face runners-up from different groups.
     private ArrayList<Team> buildClassicRoundOf16Draw(ArrayList<Team> groupWinners, ArrayList<Team> groupRunnersUp) {
         ArrayList<Team> draw = new ArrayList<>();
 
@@ -226,7 +227,6 @@ public class Tournament {
     /* */
 
     /* Modern league phase methods */
-    // Simulates eight league-phase rounds using a rotating schedule.
     private ArrayList<TournamentStanding> simulateLeaguePhase() {
         ArrayList<Team> scheduledTeams = new ArrayList<>(this.teams);
         Collections.shuffle(scheduledTeams, random);
@@ -252,7 +252,7 @@ public class Tournament {
                     awayTeam = teamA;
                 }
 
-                Match match = engine.simulateMatch(homeTeam, awayTeam);
+                Match match = playTournamentMatch(homeTeam, awayTeam);
                 matches.add(match);
                 updateStandings(standings, match);
 
@@ -265,7 +265,6 @@ public class Tournament {
         return standings;
     }
 
-    // Rotates all teams except the first one. This creates different opponents each round.
     private void rotateTeams(ArrayList<Team> scheduledTeams) {
         if (scheduledTeams.size() <= 2) return;
 
@@ -273,7 +272,6 @@ public class Tournament {
         scheduledTeams.add(1, lastTeam);
     }
 
-    // Simulates the play-off round for league phase teams ranked 9th-24th.
     private ArrayList<Team> simulatePlayoffRound(ArrayList<Team> playoffTeams) {
         ArrayList<Team> playoffWinners = new ArrayList<>();
 
@@ -285,7 +283,7 @@ public class Tournament {
             Team higherSeed = playoffTeams.get(i);
             Team lowerSeed = playoffTeams.get(playoffTeams.size() - 1 - i);
 
-            Match match = engine.simulateMatch(higherSeed, lowerSeed);
+            Match match = playTournamentMatch(higherSeed, lowerSeed);
             matches.add(match);
 
             MatchResult result = getMatchResult(match);
@@ -298,7 +296,6 @@ public class Tournament {
         return playoffWinners;
     }
 
-    // Pairs direct Round of 16 teams with play-off winners.
     private ArrayList<Team> buildModernRoundOf16Draw(ArrayList<Team> directTeams, ArrayList<Team> playoffWinners) {
         ArrayList<Team> draw = new ArrayList<>();
 
@@ -312,7 +309,6 @@ public class Tournament {
     /* */
 
     /* Knockout stage methods */
-    // Simulates a knockout stage and returns the winner.
     private Team simulateKnockoutStage(ArrayList<Team> knockoutTeams, String openingRoundName) {
         validatePowerOfTwo(knockoutTeams.size(), openingRoundName);
 
@@ -328,7 +324,7 @@ public class Tournament {
                 Team homeTeam = remainingTeams.get(i);
                 Team awayTeam = remainingTeams.get(i + 1);
 
-                Match match = engine.simulateMatch(homeTeam, awayTeam);
+                Match match = playTournamentMatch(homeTeam, awayTeam);
                 matches.add(match);
 
                 MatchResult result = getMatchResult(match);
@@ -345,7 +341,16 @@ public class Tournament {
         return remainingTeams.get(0);
     }
 
-    // Finds a winner. Draws are resolved by simulated penalties.
+    private Match playTournamentMatch(Team homeTeam, Team awayTeam) {
+        boolean userTeamMatch = userTeam != null && (homeTeam == userTeam || awayTeam == userTeam);
+
+        if (matchRunner != null) {
+            return matchRunner.playMatch(homeTeam, awayTeam, userTeamMatch);
+        }
+
+        return engine.simulateMatch(homeTeam, awayTeam);
+    }
+
     private MatchResult getMatchResult(Match match) {
         if (match.getHomeScore() > match.getAwayScore()) return new MatchResult(match.getHomeTeam(), "");
         if (match.getAwayScore() > match.getHomeScore()) return new MatchResult(match.getAwayTeam(), "");
@@ -354,7 +359,6 @@ public class Tournament {
         return new MatchResult(penaltyWinner, "Penalty shootout: " + penaltyWinner.getName() + " advances.");
     }
 
-    // Simulates a simple penalty tiebreaker using goalkeeper and attacking ratings.
     private Team decidePenaltyWinner(Team teamA, Team teamB) {
         int teamAScore = 0;
         int teamBScore = 0;
@@ -372,7 +376,6 @@ public class Tournament {
         return teamAScore > teamBScore ? teamA : teamB;
     }
 
-    // Calculates whether one penalty is scored.
     private boolean scorePenalty(Team shootingTeam, Team defendingTeam) {
         double chance = 65
             + shootingTeam.getTeamAttackRating() * 0.20
@@ -381,7 +384,6 @@ public class Tournament {
         return random.nextDouble() * 100 <= chance;
     }
 
-    // Names the knockout round based on the number of teams remaining.
     private String getRoundName(int teamsRemaining, int roundNumber, String openingRoundName) {
         if (teamsRemaining == 16) return "=== " + openingRoundName + " ===";
         if (teamsRemaining == 8) return "=== Quarter-Finals ===";
@@ -393,7 +395,6 @@ public class Tournament {
     /* */
 
     /* Standing helper methods */
-    // Creates a standings object for every team in the list.
     private ArrayList<TournamentStanding> createStandings(ArrayList<Team> teams) {
         ArrayList<TournamentStanding> standings = new ArrayList<>();
 
@@ -404,7 +405,6 @@ public class Tournament {
         return standings;
     }
 
-    // Updates standings after a match.
     private void updateStandings(ArrayList<TournamentStanding> standings, Match match) {
         TournamentStanding homeStanding = findStanding(standings, match.getHomeTeam());
         TournamentStanding awayStanding = findStanding(standings, match.getAwayTeam());
@@ -413,7 +413,6 @@ public class Tournament {
         awayStanding.recordMatch(match.getAwayScore(), match.getHomeScore());
     }
 
-    // Finds the standing object belonging to a team.
     private TournamentStanding findStanding(ArrayList<TournamentStanding> standings, Team team) {
         for (TournamentStanding standing : standings) {
             if (standing.getTeam() == team) return standing;
@@ -437,7 +436,6 @@ public class Tournament {
     }
     /* */
 
-    // Inner class used to store knockout match results.
     private class MatchResult {
         private Team winner;
         private String penaltyNote;

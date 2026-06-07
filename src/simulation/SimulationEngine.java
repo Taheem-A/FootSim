@@ -1,4 +1,4 @@
-//Exporting as package
+// Exporting as package
 package simulation;
 
 // Importing necessary classes
@@ -18,12 +18,19 @@ public class SimulationEngine {
     /* Simulation Methods */
     public Match simulateMatch(Team homeTeam, Team awayTeam) {
         Match match = new Match(homeTeam, awayTeam);
+        setRandomTactics(match, homeTeam);
+        setRandomTactics(match, awayTeam);
         simulateMatch(match);
         return match;
     }
 
     public void simulateMatch(Match match) {
         if (match == null) throw new IllegalArgumentException("Match cannot be null.");
+
+        if (!match.hasStarted()) {
+            setRandomTactics(match, match.getHomeTeam());
+            setRandomTactics(match, match.getAwayTeam());
+        }
 
         while (!match.isFinished()) {
             advanceMatch(match, 1, true);
@@ -76,9 +83,16 @@ public class SimulationEngine {
 
         return newEvents;
     }
-
     /* */
 
+    // Assigns random tactics to a team if the match is being fully simulated by the computer.
+    public void setRandomTactics(Match match, Team team) {
+        if (match == null || team == null) throw new IllegalArgumentException("Match and team cannot be null.");
+        match.validateTeamInMatch(team);
+
+        TacticalStyle[] styles = TacticalStyle.values();
+        match.setTactics(team, new TeamTactics(styles[random.nextInt(styles.length)]));
+    }
 
     // Event generation method for each minute
     private void generateMinuteEvents(Match match, int minute, boolean autoResolveChoices) {
@@ -93,26 +107,29 @@ public class SimulationEngine {
             return;
         }
 
+        Team attackingTeam = chooseAttackingTeam(match);
+        Team defendingTeam = match.getOpponent(attackingTeam);
+
+        double eventThreshold = calculateEventThreshold(match, attackingTeam, defendingTeam);
         int eventChance = random.nextInt(100) + 1;
-        if (eventChance > 24) return;
+        if (eventChance > eventThreshold) return;
 
         int eventRoll = random.nextInt(100) + 1;
-        Team attackingTeam = chooseAttackingTeam(match);
         Event event;
 
-        if (eventRoll <= 50) {
+        if (eventRoll <= 48) {
             createNormalShot(match, attackingTeam, minute);
-        } else if (eventRoll <= 65) {
-            createFoul(match, match.getOpponent(attackingTeam), minute);
-        } else if (eventRoll <= 80) {
+        } else if (eventRoll <= 64) {
+            createFoul(match, defendingTeam, minute);
+        } else if (eventRoll <= 82) {
             event = createBigChance(match, attackingTeam, minute);
             if (autoResolveChoices) {
-                resolveChance(match, event, chooseRandomChoice(event));
+                resolveChanceAutomatically(match, event);
             }
-        } else if (eventRoll <= 86) {
+        } else if (eventRoll <= 88) {
             event = createPenalty(match, attackingTeam, minute);
             if (autoResolveChoices) {
-                resolveChance(match, event, chooseRandomChoice(event));
+                resolveChanceAutomatically(match, event);
             }
         } else {
             match.addEvent(new Event(
@@ -120,9 +137,33 @@ public class SimulationEngine {
                 EventType.COMMENTARY,
                 null,
                 null,
-                "Both teams are battling for control in midfield."
+                createMomentumCommentary(match)
             ));
         }
+    }
+
+    private double calculateEventThreshold(Match match, Team attackingTeam, Team defendingTeam) {
+        double threshold = 24;
+
+        threshold += match.getTactics(attackingTeam).getEventChanceModifier() * 0.8;
+        threshold -= match.getTactics(defendingTeam).getDefenceModifier() * 0.25;
+        threshold += match.getMomentum(attackingTeam) * 0.08;
+        threshold -= match.getMomentum(defendingTeam) * 0.05;
+
+        return clamp(threshold, 10, 42);
+    }
+
+    private String createMomentumCommentary(Match match) {
+        Team strongerMomentumTeam = match.getHomeMomentum() >= match.getAwayMomentum() ? match.getHomeTeam() : match.getAwayTeam();
+
+        String[] comments = {
+            strongerMomentumTeam.getName() + " are starting to control the rhythm of the match.",
+            "Both managers are trying to influence the tempo from the touchline.",
+            "The midfield battle is becoming more intense.",
+            strongerMomentumTeam.getName() + " are growing in confidence."
+        };
+
+        return comments[random.nextInt(comments.length)];
     }
 
     /* Chance/Event Creation Methods */
@@ -179,6 +220,7 @@ public class SimulationEngine {
         validateMatchAndTeam(match, committingTeam);
 
         Player player = getRandomPlayerByPositions(match, committingTeam, new String[] {"DEF", "MID"});
+        Team opponent = match.getOpponent(committingTeam);
 
         Event foul = new Event(
             minute,
@@ -191,8 +233,9 @@ public class SimulationEngine {
         match.addEvent(foul);
 
         int cardChance = random.nextInt(100) + 1;
+        int cardRisk = 30 + match.getTactics(committingTeam).getCardRiskModifier();
 
-        if (cardChance <= 5) {
+        if (cardChance <= Math.max(3, 5 + match.getTactics(committingTeam).getCardRiskModifier() / 2)) {
             match.addEvent(new Event(
                 minute,
                 EventType.RED_CARD,
@@ -201,7 +244,9 @@ public class SimulationEngine {
                 player.getName() + " received a red card!"
             ));
             match.recordRedCard(player);
-        } else if (cardChance <= 30) {
+            match.adjustMomentum(committingTeam, -16);
+            match.adjustMomentum(opponent, 8);
+        } else if (cardChance <= clamp(cardRisk, 12, 45)) {
             if (findPlayer(player, match.getYellowCardedPlayers())) {
                 match.addEvent(new Event(
                     minute,
@@ -218,6 +263,8 @@ public class SimulationEngine {
                     player.getName() + " received a red card!"
                 ));
                 match.recordRedCard(player);
+                match.adjustMomentum(committingTeam, -16);
+                match.adjustMomentum(opponent, 8);
             } else {
                 match.addEvent(new Event(
                     minute,
@@ -227,6 +274,7 @@ public class SimulationEngine {
                     player.getName() + " received a yellow card."
                 ));
                 match.recordYellowCard(player);
+                match.adjustMomentum(committingTeam, -4);
             }
         }
 
@@ -271,6 +319,9 @@ public class SimulationEngine {
             return goal;
         }
 
+        match.adjustMomentum(attackingTeam, -2);
+        match.adjustMomentum(defendingTeam, 2);
+
         String shotTypeDescription = switch (randomShotType) {
             case "Power Shot" -> "a power shot";
             case "Finesse Shot" -> "a finesse shot";
@@ -292,6 +343,10 @@ public class SimulationEngine {
     /* */
 
     /* Chance resolution methods */
+    public ArrayList<Event> resolveChanceAutomatically(Match match, Event event) {
+        return resolveChance(match, event, chooseRandomChoice(event));
+    }
+
     public ArrayList<Event> resolveChance(Match match, Event event, String selectedChoice) {
         if (match == null) throw new IllegalArgumentException("Match cannot be null.");
         match.validateMatchInProgress();
@@ -310,7 +365,7 @@ public class SimulationEngine {
 
         double conversionChance;
 
-        if (event.isPenalty()) conversionChance = calculatePenaltyConversionChance(player, selectedChoice, defendingTeam);
+        if (event.isPenalty()) conversionChance = calculatePenaltyConversionChance(match, player, selectedChoice, attackingTeam, defendingTeam);
         else conversionChance = calculateConversionChance(match, player, selectedChoice, attackingTeam, defendingTeam);
 
         boolean scored = random.nextDouble() * 100 <= conversionChance;
@@ -331,6 +386,8 @@ public class SimulationEngine {
             resolutionEvents.add(goal);
         } else {
             Player goalkeeper = defendingTeam.getGoalkeeper();
+            match.adjustMomentum(attackingTeam, -5);
+            match.adjustMomentum(defendingTeam, 5);
 
             Event save = new Event(
                 event.getMinute(),
@@ -370,6 +427,12 @@ public class SimulationEngine {
             - defendingTeam.getTeamDefenceRating(match.getRedCardedPlayers()) * 0.20
             - goalkeeperRating * 0.10;
 
+        chance += match.getTactics(attackingTeam).getConversionModifier();
+        chance += match.getTactics(attackingTeam).getAttackModifier() * 0.35;
+        chance -= match.getTactics(defendingTeam).getDefenceModifier() * 0.30;
+        chance += match.getMomentum(attackingTeam) * 0.12;
+        chance -= match.getMomentum(defendingTeam) * 0.08;
+
         if (selectedChoice.equalsIgnoreCase("Power Shot")) {
             chance += (player.getShooting() - 50) * 0.08;
             chance += (player.getPhysical() - 50) * 0.04;
@@ -387,7 +450,7 @@ public class SimulationEngine {
         return clamp(chance, 5, 95);
     }
 
-    private double calculatePenaltyConversionChance(Player player, String selectedChoice, Team defendingTeam) {
+    private double calculatePenaltyConversionChance(Match match, Player player, String selectedChoice, Team attackingTeam, Team defendingTeam) {
         if (player == null) throw new IllegalArgumentException("Player cannot be null.");
         if (defendingTeam == null) throw new IllegalArgumentException("Defending team cannot be null.");
 
@@ -399,6 +462,10 @@ public class SimulationEngine {
 
         double keeperRating = defendingTeam.getTeamGoalkeeperRating();
         double chance = 65 + player.getShooting() * 0.25 - keeperRating * 0.15;
+
+        chance += match.getTactics(attackingTeam).getConversionModifier() * 0.4;
+        chance += match.getMomentum(attackingTeam) * 0.08;
+        chance -= match.getMomentum(defendingTeam) * 0.05;
 
         chance += switch (selectedChoice) {
             case "SHOOT MIDDLE" -> 5;
@@ -427,8 +494,23 @@ public class SimulationEngine {
     }
 
     private Team chooseAttackingTeam(Match match) {
-        double homeStrength = match.getHomeTeam().getTeamAttackRating(match.getRedCardedPlayers()) + match.getHomeTeam().getTeamMidfieldRating(match.getRedCardedPlayers());
-        double awayStrength = match.getAwayTeam().getTeamAttackRating(match.getRedCardedPlayers()) + match.getAwayTeam().getTeamMidfieldRating(match.getRedCardedPlayers());
+        double homeStrength =
+            match.getHomeTeam().getTeamAttackRating(match.getRedCardedPlayers())
+            + match.getHomeTeam().getTeamMidfieldRating(match.getRedCardedPlayers())
+            + match.getTactics(match.getHomeTeam()).getAttackModifier()
+            + match.getTactics(match.getHomeTeam()).getMidfieldModifier()
+            + match.getMomentum(match.getHomeTeam()) * 0.6;
+
+        double awayStrength =
+            match.getAwayTeam().getTeamAttackRating(match.getRedCardedPlayers())
+            + match.getAwayTeam().getTeamMidfieldRating(match.getRedCardedPlayers())
+            + match.getTactics(match.getAwayTeam()).getAttackModifier()
+            + match.getTactics(match.getAwayTeam()).getMidfieldModifier()
+            + match.getMomentum(match.getAwayTeam()) * 0.6;
+
+        homeStrength = Math.max(5, homeStrength);
+        awayStrength = Math.max(5, awayStrength);
+
         double totalStrength = homeStrength + awayStrength;
 
         if (totalStrength <= 0) {
