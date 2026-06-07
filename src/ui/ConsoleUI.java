@@ -212,7 +212,7 @@ public class ConsoleUI {
                         displayLiveEvents(newEvents);
                         resolveUserChoiceEvents(newEvents);
                     } else if (currentMatch.getCurrentMinute() > 0 && currentMatch.getCurrentMinute() % 15 == 0) {
-                        System.out.println(BRIGHT_BLACK + currentMatch.getCurrentMinute() + "' No major events. " + RESET + "Score: " + currentMatch.getScoreLine());
+                        System.out.println(BRIGHT_BLACK + currentMatch.getCurrentMinute() + "' No major events. " + RESET + "\n" + "Score: " + currentMatch.getScoreLine());
                     }
 
                     Thread.sleep(300);
@@ -256,6 +256,7 @@ public class ConsoleUI {
         addCurrentMatchToHistory();
 
         System.out.println(BRIGHT_GREEN + "Simulation complete!" + RESET);
+        pause();
         displayMatchSummary();
         pause();
     }
@@ -346,17 +347,15 @@ public class ConsoleUI {
         System.out.println();
         System.out.println(BRIGHT_YELLOW + "How should the other teams be selected?" + RESET);
         System.out.println("[1] Randomly fill all remaining teams");
-        System.out.println("[2] I choose some teams, then random fill the rest");
-        System.out.println("[3] I choose every team manually");
+        System.out.println("[2] Choose some teams manually, then randomly fill the rest");
+        System.out.println("[3] Manually choose all remaining teams");
 
         int selectionMode = validateInput("Your choice: ", 1, 3);
 
-        if (selectionMode == 1) {
-            fillRemainingTeamsRandomly(selectedTeams, requiredTeams);
-        } else if (selectionMode == 2) {
-            chooseSomeTeamsThenRandomFill(selectedTeams, requiredTeams);
-        } else {
-            chooseAllRemainingTeamsManually(selectedTeams, requiredTeams);
+        switch (selectionMode) {
+            case 1 -> fillRemainingTeamsRandomly(selectedTeams, requiredTeams);
+            case 2 -> chooseSomeTeamsThenRandomFill(selectedTeams, requiredTeams);
+            default -> chooseAllRemainingTeamsManually(selectedTeams, requiredTeams);
         }
 
         return selectedTeams;
@@ -523,6 +522,8 @@ public class ConsoleUI {
     }
 
     private void displayMatchSummary() {
+        clearConsole();
+
         if (!checkMatchExists()) return;
 
         System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
@@ -689,6 +690,14 @@ public class ConsoleUI {
 
     private void clearConsole() {
         System.out.print("\033[H\033[2J\033[3J");
+        System.out.flush();
+    }
+
+    public static void clearPreviousLines(int lines) {
+        for (int i = 0; i < lines; i++) {
+            System.out.print("\033[1A"); // move cursor up 1 line
+            System.out.print("\033[2K"); // clear the entire line
+        }
         System.out.flush();
     }
 }
