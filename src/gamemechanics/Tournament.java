@@ -35,6 +35,8 @@ public class Tournament {
 
     // Simulates a single-elimination knockout tournament.
     public Team simulateKnockoutTournament() {
+        if (this.teams.size() % 2 != 0) throw new IllegalStateException("Knockout tournament requires an even number of teams.");
+
         ArrayList<Team> remainingTeams = new ArrayList<>(this.teams);
         int roundNumber = 1;
 
@@ -52,10 +54,11 @@ public class Tournament {
                 Match match = engine.simulateMatch(homeTeam, awayTeam);
                 matches.add(match);
 
-                Team winner = getMatchWinner(match);
-                winners.add(winner);
+                MatchResult result = getMatchResult(match);
+                winners.add(result.winner);
 
-                log.add(match.getScoreLine() + " | Winner: " + winner.getName());
+                log.add(match.getScoreLine() + " | Winner: " + result.winner.getName());
+                if (!result.penaltyNote.isEmpty()) log.add(result.penaltyNote);
             }
 
             remainingTeams = winners;
@@ -90,11 +93,17 @@ public class Tournament {
         matches.add(semiFinal1);
         matches.add(semiFinal2);
 
-        Team finalist1 = getMatchWinner(semiFinal1);
-        Team finalist2 = getMatchWinner(semiFinal2);
+        MatchResult semiFinalResult1 = getMatchResult(semiFinal1);
+        MatchResult semiFinalResult2 = getMatchResult(semiFinal2);
+
+        Team finalist1 = semiFinalResult1.winner;
+        Team finalist2 = semiFinalResult2.winner;
 
         log.add(semiFinal1.getScoreLine() + " | Winner: " + finalist1.getName());
+        if (!semiFinalResult1.penaltyNote.isEmpty()) log.add(semiFinalResult1.penaltyNote);
+
         log.add(semiFinal2.getScoreLine() + " | Winner: " + finalist2.getName());
+        if (!semiFinalResult2.penaltyNote.isEmpty()) log.add(semiFinalResult2.penaltyNote);
 
         log.add("");
         log.add("=== Final ===");
@@ -102,9 +111,12 @@ public class Tournament {
         Match finalMatch = engine.simulateMatch(finalist1, finalist2);
         matches.add(finalMatch);
 
-        this.champion = getMatchWinner(finalMatch);
+        MatchResult finalResult = getMatchResult(finalMatch);
+        this.champion = finalResult.winner;
 
         log.add(finalMatch.getScoreLine() + " | Winner: " + this.champion.getName());
+        if (!finalResult.penaltyNote.isEmpty()) log.add(finalResult.penaltyNote);
+
         log.add("");
         log.add("Champion: " + this.champion.getName());
 
@@ -213,13 +225,12 @@ public class Tournament {
     }
 
     // Finds a winner. Draws are resolved by simulated penalties.
-    private Team getMatchWinner(Match match) {
-        if (match.getHomeScore() > match.getAwayScore()) return match.getHomeTeam();
-        if (match.getAwayScore() > match.getHomeScore()) return match.getAwayTeam();
+    private MatchResult getMatchResult(Match match) {
+        if (match.getHomeScore() > match.getAwayScore()) return new MatchResult(match.getHomeTeam(), "");
+        if (match.getAwayScore() > match.getHomeScore()) return new MatchResult(match.getAwayTeam(), "");
 
         Team penaltyWinner = decidePenaltyWinner(match.getHomeTeam(), match.getAwayTeam());
-        log.add("Penalty shootout: " + penaltyWinner.getName() + " advances.");
-        return penaltyWinner;
+        return new MatchResult(penaltyWinner, "Penalty shootout: " + penaltyWinner.getName() + " advances.");
     }
 
     // Simulates a simple penalty tiebreaker using goalkeeper and attacking ratings.
@@ -256,6 +267,17 @@ public class Tournament {
         if (teamsRemaining == 8) return "=== Quarter-Finals ===";
 
         return "=== Round " + roundNumber + " ===";
+    }
+
+    // Inner class used to store knockout match results.
+    private class MatchResult {
+        private Team winner;
+        private String penaltyNote;
+
+        private MatchResult(Team winner, String penaltyNote) {
+            this.winner = winner;
+            this.penaltyNote = penaltyNote;
+        }
     }
 
     // Inner class used to track group stage standings.

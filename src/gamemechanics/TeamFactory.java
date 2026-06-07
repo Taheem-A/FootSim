@@ -3,6 +3,7 @@ package gamemechanics;
 
 // Importing necessary classes
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -12,7 +13,8 @@ import java.util.LinkedHashMap;
 import java.util.Random;
 
 public class TeamFactory {
-    private static final String DATA_FILE = "../data/player_data.csv";
+    private static final String RESOURCE_DATA_FILE = "/data/player_data.csv";
+    private static final String FALLBACK_DATA_FILE = "src/data/player_data.csv";
     private static final int PLAYERS_PER_TEAM = 11;
     private static final Random random = new Random();
 
@@ -26,7 +28,7 @@ public class TeamFactory {
 
     // Creates every team stored in the CSV file.
     public static ArrayList<Team> createAllTeams() {
-        LinkedHashMap<String, ArrayList<PlayerRecord>> groupedPlayers = loadPlayerRecords();
+        LinkedHashMap<String, ArrayList<PlayerRecord>> groupedPlayers = loadPlayerRecordsByTeam();
         ArrayList<Team> teams = new ArrayList<>();
 
         for (String teamName : groupedPlayers.keySet()) {
@@ -36,13 +38,39 @@ public class TeamFactory {
         return teams;
     }
 
+    // Creates every team grouped under its league.
+    public static LinkedHashMap<String, ArrayList<Team>> createTeamsByLeague() {
+        LinkedHashMap<String, ArrayList<PlayerRecord>> groupedPlayers = loadPlayerRecordsByLeagueAndTeam();
+        LinkedHashMap<String, ArrayList<Team>> teamsByLeague = new LinkedHashMap<>();
+
+        for (String key : groupedPlayers.keySet()) {
+            ArrayList<PlayerRecord> records = groupedPlayers.get(key);
+
+            if (!records.isEmpty()) {
+                String league = records.get(0).league;
+                String teamName = records.get(0).teamName;
+
+                teamsByLeague
+                    .computeIfAbsent(league, value -> new ArrayList<>())
+                    .add(buildTeam(teamName, records));
+            }
+        }
+
+        return teamsByLeague;
+    }
+
+    // Returns the names of all leagues in the data file.
+    public static ArrayList<String> getLeagueNames() {
+        return new ArrayList<>(createTeamsByLeague().keySet());
+    }
+
     // Creates one team by name.
     public static Team createTeamByName(String requestedTeamName) {
         if (requestedTeamName == null || requestedTeamName.trim().isEmpty()) {
             throw new IllegalArgumentException("Team name cannot be empty.");
         }
 
-        LinkedHashMap<String, ArrayList<PlayerRecord>> groupedPlayers = loadPlayerRecords();
+        LinkedHashMap<String, ArrayList<PlayerRecord>> groupedPlayers = loadPlayerRecordsByTeam();
 
         for (String teamName : groupedPlayers.keySet()) {
             if (teamName.equalsIgnoreCase(requestedTeamName.trim())) {
@@ -55,12 +83,12 @@ public class TeamFactory {
 
     // Returns the names of all teams available in the data file.
     public static ArrayList<String> getTeamNames() {
-        return new ArrayList<>(loadPlayerRecords().keySet());
+        return new ArrayList<>(loadPlayerRecordsByTeam().keySet());
     }
 
     // Returns how many teams are available.
     public static int getTeamCount() {
-        return loadPlayerRecords().size();
+        return loadPlayerRecordsByTeam().size();
     }
 
     // Selects a random team while optionally excluding one team.
@@ -85,14 +113,37 @@ public class TeamFactory {
     }
 
     // Loads all player records from the CSV file and groups them by team.
-    private static LinkedHashMap<String, ArrayList<PlayerRecord>> loadPlayerRecords() {
+    private static LinkedHashMap<String, ArrayList<PlayerRecord>> loadPlayerRecordsByTeam() {
         LinkedHashMap<String, ArrayList<PlayerRecord>> groupedPlayers = new LinkedHashMap<>();
 
-        InputStream stream = TeamFactory.class.getResourceAsStream(DATA_FILE);
-
-        if (stream == null) {
-            throw new IllegalStateException("Could not find data file: " + DATA_FILE);
+        for (PlayerRecord record : loadPlayerRecords()) {
+            groupedPlayers
+                .computeIfAbsent(record.teamName, key -> new ArrayList<>())
+                .add(record);
         }
+
+        return groupedPlayers;
+    }
+
+    // Loads all player records from the CSV file and groups them by league + team.
+    private static LinkedHashMap<String, ArrayList<PlayerRecord>> loadPlayerRecordsByLeagueAndTeam() {
+        LinkedHashMap<String, ArrayList<PlayerRecord>> groupedPlayers = new LinkedHashMap<>();
+
+        for (PlayerRecord record : loadPlayerRecords()) {
+            String key = record.league + " - " + record.teamName;
+
+            groupedPlayers
+                .computeIfAbsent(key, value -> new ArrayList<>())
+                .add(record);
+        }
+
+        return groupedPlayers;
+    }
+
+    // Loads all player records from the CSV file.
+    private static ArrayList<PlayerRecord> loadPlayerRecords() {
+        ArrayList<PlayerRecord> records = new ArrayList<>();
+        InputStream stream = openDataFile();
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
             String line;
@@ -111,17 +162,28 @@ public class TeamFactory {
                     continue;
                 }
 
-                PlayerRecord record = parsePlayerRecord(line, rowNumber);
-
-                groupedPlayers
-                    .computeIfAbsent(record.teamName, key -> new ArrayList<>())
-                    .add(record);
+                records.add(parsePlayerRecord(line, rowNumber));
             }
         } catch (Exception e) {
-            throw new IllegalStateException("Error loading team data from " + DATA_FILE + ": " + e.getMessage());
+            throw new IllegalStateException("Error loading team data: " + e.getMessage());
         }
 
-        return groupedPlayers;
+        return records;
+    }
+
+    // Opens the data file from the classpath first, then from the src folder as a fallback.
+    private static InputStream openDataFile() {
+        InputStream stream = TeamFactory.class.getResourceAsStream(RESOURCE_DATA_FILE);
+
+        if (stream != null) {
+            return stream;
+        }
+
+        try {
+            return new FileInputStream(FALLBACK_DATA_FILE);
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not find data file. Tried " + RESOURCE_DATA_FILE + " and " + FALLBACK_DATA_FILE + ".");
+        }
     }
 
     // Converts one CSV line into a PlayerRecord.
@@ -240,6 +302,7 @@ public class TeamFactory {
         return new Player(
             record.playerName,
             record.position,
+            record.overall,
             record.pace,
             record.shooting,
             record.passing,
@@ -287,7 +350,7 @@ public class TeamFactory {
         ) {
             return "ATK";
         }
-        
+
         return "MID";
     }
 

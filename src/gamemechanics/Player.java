@@ -9,6 +9,7 @@ public class Player {
     // Instance fields
     private String name;
     private String position;
+    private int overall;
     private int pace;
     private int shooting;
     private int passing;
@@ -19,13 +20,19 @@ public class Player {
     // Default constructor
     public Player() {
         // The 'this()' calls another constructor matching the parameters and allows for less repetition
-        this("Unknown Player", "MID", 50, 50, 50, 50, 50, 50);
+        this("Unknown Player", "MID", 50, 50, 50, 50, 50, 50, 50);
     }
 
-    // Overloaded constructor
+    // Overloaded constructor used when no official overall rating is available.
     public Player(String name, String position, int pace, int shooting, int passing, int dribbling, int defence, int physical) {
+        this(name, position, calculateAverageOverall(pace, shooting, passing, dribbling, defence, physical), pace, shooting, passing, dribbling, defence, physical);
+    }
+
+    // Main constructor used by CSV-loaded players with official FC overall ratings.
+    public Player(String name, String position, int overall, int pace, int shooting, int passing, int dribbling, int defence, int physical) {
         this.name = validateName(name);
         this.position = validatePosition(position);
+        this.overall = validateStat(overall);
         this.pace = validateStat(pace);
         this.shooting = validateStat(shooting);
         this.passing = validateStat(passing);
@@ -42,7 +49,6 @@ public class Player {
 
     private String validateName(String name) {
         if (name == null || name.trim().isEmpty()) throw new IllegalArgumentException("Player name cannot be blank/empty.");
-
         return name.trim();
     }
 
@@ -50,7 +56,6 @@ public class Player {
         if (position == null || position.trim().isEmpty()) throw new IllegalArgumentException("Position cannot be blank/empty.");
         position = position.trim().toUpperCase();
         if (!position.equals("ATK") && !position.equals("MID") && !position.equals("DEF") && !position.equals("GK")) throw new IllegalArgumentException("Position must be either ATK, MID, DEF, GK.");
-
         return position;
     }
     /* */
@@ -70,6 +75,14 @@ public class Player {
 
     public void setPosition(String position) {
         this.position = validatePosition(position);
+    }
+
+    public int getOverall() {
+        return this.overall;
+    }
+
+    public void setOverall(int overall) {
+        this.overall = validateStat(overall);
     }
 
     public int getPace() {
@@ -119,16 +132,15 @@ public class Player {
     public void setPhysical(int physical) {
         this.physical = validateStat(physical);
     }
-
     /* */
 
     /* Methods calculating different types of ratings */
     public double getOverallRating() {
-        return (this.pace + this.shooting + this.passing + this.dribbling + this.defence + this.physical) / 6.0;
+        return this.overall;
     }
 
     public int getRoundedOverallRating() {
-        return (int) Math.round(getOverallRating());
+        return this.overall;
     }
 
     public double getAttackRating() {
@@ -146,7 +158,12 @@ public class Player {
     public double getGoalkeepingRating() {
         return this.pace * 0.10 + this.passing * 0.15 + this.dribbling * 0.05 + this.defence * 0.50 + this.physical * 0.20;
     }
+    /* */
 
+    /* Helper methods */
+    private static int calculateAverageOverall(int pace, int shooting, int passing, int dribbling, int defence, int physical) {
+        return (int) Math.round((pace + shooting + passing + dribbling + defence + physical) / 6.0);
+    }
     /* */
 
     // Overridden 'toString()' method
@@ -162,6 +179,7 @@ public class Player {
             +---------------+-------+
             | Stat          | Value |
             +---------------+-------+
+            | Overall       | %-5d |
             | Pace          | %-5d |
             | Shooting      | %-5d |
             | Passing       | %-5d |
@@ -169,8 +187,6 @@ public class Player {
             | Defence       | %-5d |
             | Physical      | %-5d |
             +---------------+-------+
-            | Overall       | %-5d |
-            +---------------+-------+
-            """.formatted(formattedName, this.position, this.pace, this.shooting, this.passing, this.dribbling, this.defence, this.physical, getRoundedOverallRating());
+            """.formatted(formattedName, this.position, getRoundedOverallRating(), this.pace, this.shooting, this.passing, this.dribbling, this.defence, this.physical);
     }
 }

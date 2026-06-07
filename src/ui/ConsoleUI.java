@@ -10,6 +10,7 @@ import gamemechanics.TeamFactory;
 import gamemechanics.Tournament;
 import java.util.ArrayList;
 import java.util.InputMismatchException;
+import java.util.LinkedHashMap;
 import java.util.Scanner;
 import simulation.SimulationEngine;
 
@@ -26,6 +27,7 @@ public class ConsoleUI {
     private final Scanner console;
     private final SimulationEngine engine;
     private final MatchHistory matchHistory;
+    private final LinkedHashMap<String, ArrayList<Team>> teamsByLeague;
     private final ArrayList<Team> availableTeams;
     private Match currentMatch;
 
@@ -34,7 +36,8 @@ public class ConsoleUI {
         this.console = new Scanner(System.in);
         this.engine = new SimulationEngine();
         this.matchHistory = new MatchHistory();
-        this.availableTeams = TeamFactory.createDefaultTeams();
+        this.teamsByLeague = TeamFactory.createTeamsByLeague();
+        this.availableTeams = flattenTeams(this.teamsByLeague);
         this.currentMatch = null;
     }
 
@@ -54,7 +57,7 @@ public class ConsoleUI {
                 case 3 -> runKnockoutTournament();
                 case 4 -> runGroupStageTournament();
                 case 5 -> {
-                    displayTeamList();
+                    displayTeamListByLeague();
                     pause();
                 }
                 case 6 -> {
@@ -88,11 +91,11 @@ public class ConsoleUI {
         System.out.println();
 
         System.out.println(BRIGHT_YELLOW + "Choose the home team:" + RESET);
-        Team homeTeam = chooseTeam(null);
+        Team homeTeam = chooseTeamByLeague(null);
 
         System.out.println();
         System.out.println(BRIGHT_YELLOW + "Choose the away team:" + RESET);
-        Team awayTeam = chooseTeam(homeTeam);
+        Team awayTeam = chooseTeamByLeague(homeTeam);
 
         this.currentMatch = new Match(homeTeam, awayTeam);
         runMatchCentre();
@@ -109,7 +112,7 @@ public class ConsoleUI {
         System.out.println("Semi-Finals → Final → Champion");
         System.out.println();
 
-        ArrayList<Team> selectedTeams = chooseMultipleTeams(4);
+        ArrayList<Team> selectedTeams = chooseMultipleTeamsByLeague(4);
         Tournament tournament = new Tournament("FootSim Cup", selectedTeams, engine);
 
         Team champion = tournament.simulateKnockoutTournament();
@@ -137,7 +140,7 @@ public class ConsoleUI {
         System.out.println("2 groups of 4 → top 2 qualify → semi-finals → final");
         System.out.println();
 
-        ArrayList<Team> selectedTeams = chooseMultipleTeams(8);
+        ArrayList<Team> selectedTeams = chooseMultipleTeamsByLeague(8);
         Tournament tournament = new Tournament("FootSim Champions Cup", selectedTeams, engine);
 
         Team champion = tournament.simulateGroupStageAndKnockout();
@@ -360,7 +363,7 @@ public class ConsoleUI {
         );
     }
 
-    private void displayTeamList() {
+    private void displayTeamListByLeague() {
         clearConsole();
 
         System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
@@ -368,9 +371,16 @@ public class ConsoleUI {
         System.out.println("╚══════════════════════════════════════╝" + RESET);
         System.out.println();
 
-        for (int i = 0; i < availableTeams.size(); i++) {
-            Team team = availableTeams.get(i);
-            System.out.printf("[%d] %-24s Overall: %d%n", i + 1, team.getName(), roundVal(team.getAverageOverallRating()));
+        for (String league : teamsByLeague.keySet()) {
+            System.out.println(BRIGHT_YELLOW + league + RESET);
+
+            ArrayList<Team> leagueTeams = teamsByLeague.get(league);
+
+            for (Team team : leagueTeams) {
+                System.out.printf("- %-24s Overall: %d%n", team.getName(), roundVal(team.getAverageOverallRating()));
+            }
+
+            System.out.println();
         }
     }
 
@@ -445,35 +455,59 @@ public class ConsoleUI {
     }
 
     /* Team selection methods */
-    private Team chooseTeam(Team excludedTeam) {
-        for (int i = 0; i < availableTeams.size(); i++) {
-            Team team = availableTeams.get(i);
-            String unavailable = team == excludedTeam ? " " + BRIGHT_BLACK + "(already selected)" + RESET : "";
-            System.out.printf("[%d] %-24s%s%n", i + 1, team.getName(), unavailable);
+    private ArrayList<String> getLeagueNames() {
+        return new ArrayList<>(teamsByLeague.keySet());
+    }
+
+    private String chooseLeague() {
+        ArrayList<String> leagueNames = getLeagueNames();
+
+        System.out.println(BRIGHT_YELLOW + "Choose League:" + RESET);
+
+        for (int i = 0; i < leagueNames.size(); i++) {
+            String league = leagueNames.get(i);
+            System.out.println("[" + (i + 1) + "] " + league + " (" + teamsByLeague.get(league).size() + " teams)");
         }
 
-        int choice;
+        int choice = validateInput("Choose league: ", 1, leagueNames.size());
+        return leagueNames.get(choice - 1);
+    }
+
+    private Team chooseTeamByLeague(Team excludedTeam) {
         Team selectedTeam;
 
         do {
-            choice = validateInput("Choose team: ", 1, availableTeams.size());
-            selectedTeam = availableTeams.get(choice - 1);
+            String selectedLeague = chooseLeague();
+            ArrayList<Team> leagueTeams = teamsByLeague.get(selectedLeague);
+
+            System.out.println();
+            System.out.println(BRIGHT_YELLOW + "Choose Team from " + selectedLeague + ":" + RESET);
+
+            for (int i = 0; i < leagueTeams.size(); i++) {
+                Team team = leagueTeams.get(i);
+                String unavailable = team == excludedTeam ? " " + BRIGHT_BLACK + "(already selected)" + RESET : "";
+                System.out.printf("[%d] %-24s Overall: %d%s%n", i + 1, team.getName(), roundVal(team.getAverageOverallRating()), unavailable);
+            }
+
+            int teamChoice = validateInput("Choose team: ", 1, leagueTeams.size());
+            selectedTeam = leagueTeams.get(teamChoice - 1);
 
             if (selectedTeam == excludedTeam) {
                 System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " Choose a different team.");
+                System.out.println();
             }
         } while (selectedTeam == excludedTeam);
 
         return selectedTeam;
     }
 
-    private ArrayList<Team> chooseMultipleTeams(int numberOfTeams) {
+    private ArrayList<Team> chooseMultipleTeamsByLeague(int numberOfTeams) {
         ArrayList<Team> selectedTeams = new ArrayList<>();
 
         for (int i = 0; i < numberOfTeams; i++) {
             System.out.println(BRIGHT_YELLOW + "Choose team " + (i + 1) + " of " + numberOfTeams + ":" + RESET);
 
-            Team selectedTeam = chooseTeamFromRemaining(selectedTeams);
+            Team selectedTeam = chooseTeamByLeagueExcludingList(selectedTeams);
             selectedTeams.add(selectedTeam);
 
             System.out.println(selectedTeam.getName() + " added.");
@@ -483,22 +517,15 @@ public class ConsoleUI {
         return selectedTeams;
     }
 
-    private Team chooseTeamFromRemaining(ArrayList<Team> selectedTeams) {
-        for (int i = 0; i < availableTeams.size(); i++) {
-            Team team = availableTeams.get(i);
-            String unavailable = selectedTeams.contains(team) ? " " + BRIGHT_BLACK + "(already selected)" + RESET : "";
-            System.out.printf("[%d] %-24s%s%n", i + 1, team.getName(), unavailable);
-        }
-
-        int choice;
+    private Team chooseTeamByLeagueExcludingList(ArrayList<Team> selectedTeams) {
         Team selectedTeam;
 
         do {
-            choice = validateInput("Choose team: ", 1, availableTeams.size());
-            selectedTeam = availableTeams.get(choice - 1);
+            selectedTeam = chooseTeamByLeague(null);
 
             if (selectedTeams.contains(selectedTeam)) {
                 System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " This team has already been selected.");
+                System.out.println();
             }
         } while (selectedTeams.contains(selectedTeam));
 
@@ -506,6 +533,16 @@ public class ConsoleUI {
     }
 
     /* Helper methods */
+    private ArrayList<Team> flattenTeams(LinkedHashMap<String, ArrayList<Team>> teamsByLeague) {
+        ArrayList<Team> teams = new ArrayList<>();
+
+        for (String league : teamsByLeague.keySet()) {
+            teams.addAll(teamsByLeague.get(league));
+        }
+
+        return teams;
+    }
+
     private void addCurrentMatchToHistory() {
         if (currentMatch != null && currentMatch.isFinished() && !matchHistory.getMatches().contains(currentMatch)) {
             matchHistory.addMatch(currentMatch);
