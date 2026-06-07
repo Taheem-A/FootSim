@@ -319,6 +319,8 @@ public class ConsoleUI {
         }
 
         int choice = validateInput("Choose format: ", 1, formats.length);
+        clearPreviousLines(formats.length + 3);
+
         return formats[choice - 1];
     }
 
@@ -329,6 +331,7 @@ public class ConsoleUI {
         System.out.println("[2] No");
 
         int choice = validateInput("Your choice: ", 1, 2);
+        clearPreviousLines(5);
 
         if (choice == 2) return null;
 
@@ -351,6 +354,7 @@ public class ConsoleUI {
         System.out.println("[3] Manually choose all remaining teams");
 
         int selectionMode = validateInput("Your choice: ", 1, 3);
+        clearPreviousLines(6);
 
         switch (selectionMode) {
             case 1 -> fillRemainingTeamsRandomly(selectedTeams, requiredTeams);
@@ -370,9 +374,9 @@ public class ConsoleUI {
         System.out.println(BRIGHT_BLACK + "The rest will be selected randomly." + RESET);
 
         int manualCount = validateInput("Manual teams: ", 0, remainingSlots);
+        clearPreviousLines(4);
 
         for (int i = 0; i < manualCount; i++) {
-            System.out.println();
             System.out.println(BRIGHT_YELLOW + "Choose manual team " + (i + 1) + " of " + manualCount + ":" + RESET);
             Team team = chooseTeamByLeague(selectedTeams);
             selectedTeams.add(team);
@@ -577,6 +581,8 @@ public class ConsoleUI {
         }
 
         int choice = validateInput("Choose league: ", 1, leagueNames.size());
+        clearPreviousLines(leagueNames.size() + 2);
+
         return leagueNames.get(choice - 1);
     }
 
@@ -588,8 +594,6 @@ public class ConsoleUI {
         do {
             String selectedLeague = chooseLeague();
             ArrayList<Team> leagueTeams = teamsByLeague.get(selectedLeague);
-
-            System.out.println();
             System.out.println(BRIGHT_YELLOW + "Choose Team from " + selectedLeague + ":" + RESET);
 
             for (int i = 0; i < leagueTeams.size(); i++) {
@@ -600,6 +604,7 @@ public class ConsoleUI {
 
             int teamChoice = validateInput("Choose team: ", 1, leagueTeams.size());
             selectedTeam = leagueTeams.get(teamChoice - 1);
+            clearPreviousLines(leagueTeams.size() + 4);
 
             if (excludedTeams.contains(selectedTeam)) {
                 System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " Choose a different team.");
