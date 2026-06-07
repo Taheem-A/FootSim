@@ -21,8 +21,16 @@ public class Tournament {
     private final SimulationEngine engine;
     private final Random random;
     private TournamentMatchRunner matchRunner;
+    private TournamentProgressListener progressListener;
     private Team userTeam;
     private Team champion;
+
+    // This listener lets the UI display live tournament updates without putting UI code inside Tournament.
+    public interface TournamentProgressListener {
+        void onGroupCompleted(String groupName, ArrayList<TournamentStanding> standings);
+        void onLeagueRoundCompleted(int roundNumber, ArrayList<TournamentStanding> standings);
+        void onKnockoutRoundCompleted(String roundName, ArrayList<Match> roundMatches, ArrayList<Team> winners);
+    }
 
     // Main constructor
     public Tournament(String name, ArrayList<Team> teams, SimulationEngine engine) {
@@ -42,12 +50,17 @@ public class Tournament {
         this.engine = engine;
         this.random = new Random();
         this.matchRunner = null;
+        this.progressListener = null;
         this.userTeam = userTeam;
         this.champion = null;
     }
 
     public void setMatchRunner(TournamentMatchRunner matchRunner) {
         this.matchRunner = matchRunner;
+    }
+
+    public void setProgressListener(TournamentProgressListener progressListener) {
+        this.progressListener = progressListener;
     }
 
     /* Main tournament simulation methods */
@@ -58,7 +71,7 @@ public class Tournament {
         log.add("=== " + this.name + " - Knockout Tournament ===");
         logUserTeam();
 
-        this.champion = simulateKnockoutStage(new ArrayList<>(this.teams), "Knockout Stage");
+        this.champion = simulateKnockoutStage(new ArrayList<>(this.teams), "Round of 16");
 
         log.add("");
         log.add("Champion: " + this.champion.getName());
@@ -211,6 +224,10 @@ public class Tournament {
 
         log.add("Qualified: " + standings.get(0).getTeam().getName() + ", " + standings.get(1).getTeam().getName());
 
+        if (progressListener != null) {
+            progressListener.onGroupCompleted(groupName, new ArrayList<>(standings));
+        }
+
         return standings;
     }
 
@@ -259,6 +276,12 @@ public class Tournament {
                 log.add(match.getScoreLine());
             }
 
+            Collections.sort(standings);
+
+            if (progressListener != null) {
+                progressListener.onLeagueRoundCompleted(round, new ArrayList<>(standings));
+            }
+
             rotateTeams(scheduledTeams);
         }
 
@@ -274,6 +297,7 @@ public class Tournament {
 
     private ArrayList<Team> simulatePlayoffRound(ArrayList<Team> playoffTeams) {
         ArrayList<Team> playoffWinners = new ArrayList<>();
+        ArrayList<Match> roundMatches = new ArrayList<>();
 
         log.add("");
         log.add("=== Knockout Play-Off Round ===");
@@ -285,12 +309,17 @@ public class Tournament {
 
             Match match = playTournamentMatch(higherSeed, lowerSeed);
             matches.add(match);
+            roundMatches.add(match);
 
             MatchResult result = getMatchResult(match);
             playoffWinners.add(result.winner);
 
             log.add(match.getScoreLine() + " | Winner: " + result.winner.getName());
             if (!result.penaltyNote.isEmpty()) log.add(result.penaltyNote);
+        }
+
+        if (progressListener != null) {
+            progressListener.onKnockoutRoundCompleted("Knockout Play-Off Round", roundMatches, new ArrayList<>(playoffWinners));
         }
 
         return playoffWinners;
@@ -317,8 +346,11 @@ public class Tournament {
 
         while (remainingTeams.size() > 1) {
             ArrayList<Team> winners = new ArrayList<>();
+            ArrayList<Match> roundMatches = new ArrayList<>();
+            String roundName = getRoundName(remainingTeams.size(), roundNumber, openingRoundName);
+
             log.add("");
-            log.add(getRoundName(remainingTeams.size(), roundNumber, openingRoundName));
+            log.add(roundName);
 
             for (int i = 0; i < remainingTeams.size(); i += 2) {
                 Team homeTeam = remainingTeams.get(i);
@@ -326,12 +358,17 @@ public class Tournament {
 
                 Match match = playTournamentMatch(homeTeam, awayTeam);
                 matches.add(match);
+                roundMatches.add(match);
 
                 MatchResult result = getMatchResult(match);
                 winners.add(result.winner);
 
                 log.add(match.getScoreLine() + " | Winner: " + result.winner.getName());
                 if (!result.penaltyNote.isEmpty()) log.add(result.penaltyNote);
+            }
+
+            if (progressListener != null) {
+                progressListener.onKnockoutRoundCompleted(stripRoundDecorations(roundName), roundMatches, new ArrayList<>(winners));
             }
 
             remainingTeams = winners;
@@ -433,6 +470,10 @@ public class Tournament {
         if (this.userTeam != null) {
             log.add("User Team: " + this.userTeam.getName());
         }
+    }
+
+    private String stripRoundDecorations(String roundName) {
+        return roundName.replace("=", "").trim();
     }
     /* */
 
