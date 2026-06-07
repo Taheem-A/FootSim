@@ -8,6 +8,7 @@ import gamemechanics.MatchHistory;
 import gamemechanics.Team;
 import gamemechanics.TeamFactory;
 import gamemechanics.Tournament;
+import gamemechanics.TournamentFormat;
 import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.LinkedHashMap;
@@ -49,18 +50,17 @@ public class ConsoleUI {
 
         do {
             displayMainMenu();
-            mainMenuChoice = validateInput("Your choice: ", 1, 7);
+            mainMenuChoice = validateInput("Your choice: ", 1, 6);
 
             switch (mainMenuChoice) {
                 case 1 -> runQuickMatch();
                 case 2 -> runCustomMatch();
-                case 3 -> runKnockoutTournament();
-                case 4 -> runGroupStageTournament();
-                case 5 -> {
+                case 3 -> runTournamentSetup();
+                case 4 -> {
                     displayTeamListByLeague();
                     pause();
                 }
-                case 6 -> {
+                case 5 -> {
                     displayMatchHistory();
                     pause();
                 }
@@ -69,7 +69,7 @@ public class ConsoleUI {
                     System.out.println(RESET + "See you soon!");
                 }
             }
-        } while (mainMenuChoice != 7);
+        } while (mainMenuChoice != 6);
 
         console.close();
     }
@@ -91,59 +91,57 @@ public class ConsoleUI {
         System.out.println();
 
         System.out.println(BRIGHT_YELLOW + "Choose the home team:" + RESET);
-        Team homeTeam = chooseTeamByLeague(null);
+        Team homeTeam = chooseTeamByLeague(new ArrayList<>());
 
         System.out.println();
         System.out.println(BRIGHT_YELLOW + "Choose the away team:" + RESET);
-        Team awayTeam = chooseTeamByLeague(homeTeam);
+        ArrayList<Team> excludedTeams = new ArrayList<>();
+        excludedTeams.add(homeTeam);
+        Team awayTeam = chooseTeamByLeague(excludedTeams);
 
         this.currentMatch = new Match(homeTeam, awayTeam);
         runMatchCentre();
     }
 
-    private void runKnockoutTournament() {
+    private void runTournamentSetup() {
         clearConsole();
         System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║        KNOCKOUT TOURNAMENT MODE      ║");
+        System.out.println("║          TOURNAMENT SETUP            ║");
         System.out.println("╚══════════════════════════════════════╝" + RESET);
         System.out.println();
 
-        System.out.println("A 4-team knockout tournament will be simulated.");
-        System.out.println("Semi-Finals → Final → Champion");
-        System.out.println();
+        TournamentFormat format = chooseTournamentFormat();
+        int requiredTeams = format.getDefaultTeamCount();
 
-        ArrayList<Team> selectedTeams = chooseMultipleTeamsByLeague(4);
-        Tournament tournament = new Tournament("FootSim Cup", selectedTeams, engine);
-
-        Team champion = tournament.simulateKnockoutTournament();
-
-        for (Match match : tournament.getMatches()) {
-            matchHistory.addMatch(match);
+        if (availableTeams.size() < requiredTeams) {
+            System.out.println(BRIGHT_RED + "Not enough teams available." + RESET);
+            System.out.println("This format requires " + requiredTeams + " teams, but only " + availableTeams.size() + " are loaded.");
+            pause();
+            return;
         }
 
+        Team userTeam = chooseOptionalUserTeam();
+        ArrayList<Team> selectedTeams = buildTournamentTeamList(requiredTeams, userTeam);
+
+        Tournament tournament = new Tournament(format.getDisplayName() + " Tournament", selectedTeams, engine, userTeam);
+
         clearConsole();
-        System.out.println(BRIGHT_GREEN + "Tournament complete!" + RESET);
+        System.out.println(BRIGHT_GREEN + "Tournament created!" + RESET);
+        System.out.println("Format: " + format.getDisplayName());
+        System.out.println("Teams: " + selectedTeams.size());
+        if (userTeam != null) System.out.println("User Team: " + userTeam.getName());
         System.out.println();
-        System.out.println(tournament.getFormattedReport());
-        System.out.println(BRIGHT_YELLOW + "Champion: " + champion.getName() + RESET);
-        pause();
-    }
-
-    private void runGroupStageTournament() {
-        clearConsole();
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║     GROUP STAGE + KNOCKOUT MODE      ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
+        System.out.println("Simulating tournament...");
         System.out.println();
 
-        System.out.println("An 8-team tournament will be simulated.");
-        System.out.println("2 groups of 4 → top 2 qualify → semi-finals → final");
-        System.out.println();
+        Team champion;
 
-        ArrayList<Team> selectedTeams = chooseMultipleTeamsByLeague(8);
-        Tournament tournament = new Tournament("FootSim Champions Cup", selectedTeams, engine);
-
-        Team champion = tournament.simulateGroupStageAndKnockout();
+        switch (format) {
+            case KNOCKOUT_ONLY -> champion = tournament.simulateKnockoutTournament();
+            case CLASSIC_GROUP_STAGE -> champion = tournament.simulateClassicGroupStage();
+            case MODERN_LEAGUE_PHASE -> champion = tournament.simulateModernLeaguePhase();
+            default -> champion = tournament.simulateKnockoutTournament();
+        }
 
         for (Match match : tournament.getMatches()) {
             matchHistory.addMatch(match);
@@ -309,6 +307,115 @@ public class ConsoleUI {
         return choices.get(choice - 1);
     }
 
+    /* Tournament setup methods */
+    private TournamentFormat chooseTournamentFormat() {
+        TournamentFormat[] formats = TournamentFormat.values();
+
+        System.out.println(BRIGHT_YELLOW + "Choose tournament format:" + RESET);
+
+        for (int i = 0; i < formats.length; i++) {
+            System.out.println("[" + (i + 1) + "] " + formats[i].getDisplayName() + " (" + formats[i].getDefaultTeamCount() + " teams)");
+        }
+
+        int choice = validateInput("Choose format: ", 1, formats.length);
+        return formats[choice - 1];
+    }
+
+    private Team chooseOptionalUserTeam() {
+        System.out.println();
+        System.out.println(BRIGHT_YELLOW + "Do you want to choose a team to play as?" + RESET);
+        System.out.println("[1] Yes");
+        System.out.println("[2] No");
+
+        int choice = validateInput("Your choice: ", 1, 2);
+
+        if (choice == 2) return null;
+
+        System.out.println();
+        System.out.println(BRIGHT_YELLOW + "Choose your team:" + RESET);
+        return chooseTeamByLeague(new ArrayList<>());
+    }
+
+    private ArrayList<Team> buildTournamentTeamList(int requiredTeams, Team userTeam) {
+        ArrayList<Team> selectedTeams = new ArrayList<>();
+
+        if (userTeam != null) {
+            selectedTeams.add(userTeam);
+        }
+
+        System.out.println();
+        System.out.println(BRIGHT_YELLOW + "How should the other teams be selected?" + RESET);
+        System.out.println("[1] Randomly fill all remaining teams");
+        System.out.println("[2] I choose some teams, then random fill the rest");
+        System.out.println("[3] I choose every team manually");
+
+        int selectionMode = validateInput("Your choice: ", 1, 3);
+
+        if (selectionMode == 1) {
+            fillRemainingTeamsRandomly(selectedTeams, requiredTeams);
+        } else if (selectionMode == 2) {
+            chooseSomeTeamsThenRandomFill(selectedTeams, requiredTeams);
+        } else {
+            chooseAllRemainingTeamsManually(selectedTeams, requiredTeams);
+        }
+
+        return selectedTeams;
+    }
+
+    private void chooseSomeTeamsThenRandomFill(ArrayList<Team> selectedTeams, int requiredTeams) {
+        int remainingSlots = requiredTeams - selectedTeams.size();
+
+        System.out.println();
+        System.out.println("Remaining team slots: " + remainingSlots);
+        System.out.println("How many additional teams do you want to choose manually?");
+        System.out.println(BRIGHT_BLACK + "The rest will be selected randomly." + RESET);
+
+        int manualCount = validateInput("Manual teams: ", 0, remainingSlots);
+
+        for (int i = 0; i < manualCount; i++) {
+            System.out.println();
+            System.out.println(BRIGHT_YELLOW + "Choose manual team " + (i + 1) + " of " + manualCount + ":" + RESET);
+            Team team = chooseTeamByLeague(selectedTeams);
+            selectedTeams.add(team);
+            System.out.println(team.getName() + " added.");
+        }
+
+        fillRemainingTeamsRandomly(selectedTeams, requiredTeams);
+    }
+
+    private void chooseAllRemainingTeamsManually(ArrayList<Team> selectedTeams, int requiredTeams) {
+        while (selectedTeams.size() < requiredTeams) {
+            System.out.println();
+            System.out.println(BRIGHT_YELLOW + "Choose team " + (selectedTeams.size() + 1) + " of " + requiredTeams + ":" + RESET);
+            Team team = chooseTeamByLeague(selectedTeams);
+            selectedTeams.add(team);
+            System.out.println(team.getName() + " added.");
+        }
+    }
+
+    private void fillRemainingTeamsRandomly(ArrayList<Team> selectedTeams, int requiredTeams) {
+        ArrayList<Team> remainingTeams = new ArrayList<>();
+
+        for (Team team : availableTeams) {
+            if (!selectedTeams.contains(team)) {
+                remainingTeams.add(team);
+            }
+        }
+
+        if (remainingTeams.size() + selectedTeams.size() < requiredTeams) {
+            throw new IllegalStateException("Not enough teams available to fill the tournament.");
+        }
+
+        while (selectedTeams.size() < requiredTeams) {
+            Team randomTeam = remainingTeams.remove((int) (Math.random() * remainingTeams.size()));
+            selectedTeams.add(randomTeam);
+        }
+
+        System.out.println();
+        System.out.println("Randomly filled remaining teams.");
+    }
+    /* */
+
     /* Display methods */
     private void displayMainMenu() {
         clearConsole();
@@ -320,11 +427,10 @@ public class ConsoleUI {
             + "\n"
             + "\n" + " [1] Quick Match"
             + "\n" + " [2] Custom Match"
-            + "\n" + " [3] Knockout Tournament"
-            + "\n" + " [4] Group Stage + Knockout Tournament"
-            + "\n" + " [5] View Teams"
-            + "\n" + " [6] Match History"
-            + "\n" + " [7] Quit"
+            + "\n" + " [3] Tournament Mode"
+            + "\n" + " [4] View Teams"
+            + "\n" + " [5] Match History"
+            + "\n" + " [6] Quit"
             + "\n"
             + "\n" + "────────────────────────────────────────"
             + "\n"
@@ -473,7 +579,9 @@ public class ConsoleUI {
         return leagueNames.get(choice - 1);
     }
 
-    private Team chooseTeamByLeague(Team excludedTeam) {
+    private Team chooseTeamByLeague(ArrayList<Team> excludedTeams) {
+        if (excludedTeams == null) excludedTeams = new ArrayList<>();
+
         Team selectedTeam;
 
         do {
@@ -485,49 +593,18 @@ public class ConsoleUI {
 
             for (int i = 0; i < leagueTeams.size(); i++) {
                 Team team = leagueTeams.get(i);
-                String unavailable = team == excludedTeam ? " " + BRIGHT_BLACK + "(already selected)" + RESET : "";
+                String unavailable = excludedTeams.contains(team) ? " " + BRIGHT_BLACK + "(already selected)" + RESET : "";
                 System.out.printf("[%d] %-24s Overall: %d%s%n", i + 1, team.getName(), roundVal(team.getAverageOverallRating()), unavailable);
             }
 
             int teamChoice = validateInput("Choose team: ", 1, leagueTeams.size());
             selectedTeam = leagueTeams.get(teamChoice - 1);
 
-            if (selectedTeam == excludedTeam) {
+            if (excludedTeams.contains(selectedTeam)) {
                 System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " Choose a different team.");
                 System.out.println();
             }
-        } while (selectedTeam == excludedTeam);
-
-        return selectedTeam;
-    }
-
-    private ArrayList<Team> chooseMultipleTeamsByLeague(int numberOfTeams) {
-        ArrayList<Team> selectedTeams = new ArrayList<>();
-
-        for (int i = 0; i < numberOfTeams; i++) {
-            System.out.println(BRIGHT_YELLOW + "Choose team " + (i + 1) + " of " + numberOfTeams + ":" + RESET);
-
-            Team selectedTeam = chooseTeamByLeagueExcludingList(selectedTeams);
-            selectedTeams.add(selectedTeam);
-
-            System.out.println(selectedTeam.getName() + " added.");
-            System.out.println();
-        }
-
-        return selectedTeams;
-    }
-
-    private Team chooseTeamByLeagueExcludingList(ArrayList<Team> selectedTeams) {
-        Team selectedTeam;
-
-        do {
-            selectedTeam = chooseTeamByLeague(null);
-
-            if (selectedTeams.contains(selectedTeam)) {
-                System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " This team has already been selected.");
-                System.out.println();
-            }
-        } while (selectedTeams.contains(selectedTeam));
+        } while (excludedTeams.contains(selectedTeam));
 
         return selectedTeam;
     }
