@@ -2,13 +2,13 @@
 package simulation;
 
 // Importing necessary classes
-import gamemechanics.Event;
-import gamemechanics.EventType;
-import gamemechanics.Match;
-import gamemechanics.Player;
-import gamemechanics.TacticalStyle;
-import gamemechanics.Team;
-import gamemechanics.TeamTactics;
+import gamemechanics.core.Event;
+import gamemechanics.core.EventType;
+import gamemechanics.core.Match;
+import gamemechanics.core.Player;
+import gamemechanics.core.Team;
+import gamemechanics.tactics.TacticalStyle;
+import gamemechanics.tactics.TeamTactics;
 import java.util.ArrayList;
 import java.util.Random;
 

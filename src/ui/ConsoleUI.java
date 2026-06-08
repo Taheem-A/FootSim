@@ -2,18 +2,18 @@
 package ui;
 
 // Importing all necessary classes
-import gamemechanics.Event;
-import gamemechanics.ManagerDecision;
-import gamemechanics.Match;
-import gamemechanics.MatchHistory;
-import gamemechanics.TacticalStyle;
-import gamemechanics.Team;
-import gamemechanics.TeamFactory;
-import gamemechanics.TeamTactics;
-import gamemechanics.TeamTalk;
-import gamemechanics.Tournament;
-import gamemechanics.TournamentFormat;
-import gamemechanics.TournamentStanding;
+import gamemechanics.core.Event;
+import gamemechanics.tactics.ManagerDecision;
+import gamemechanics.core.Match;
+import gamemechanics.core.MatchHistory;
+import gamemechanics.tactics.TacticalStyle;
+import gamemechanics.core.Team;
+import gamemechanics.factory.TeamFactory;
+import gamemechanics.tactics.TeamTactics;
+import gamemechanics.tactics.TeamTalk;
+import gamemechanics.tournament.Tournament;
+import gamemechanics.tournament.TournamentFormat;
+import gamemechanics.tournament.TournamentStanding;
 import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.LinkedHashMap;
@@ -187,13 +187,11 @@ public class ConsoleUI {
         System.out.println("User-Team Match Mode: " + formatTournamentUserMatchMode(tournamentUserMatchMode) + "\n");
         pause();
 
-        Team champion;
-
         switch (format) {
-            case KNOCKOUT_ONLY -> champion = tournament.simulateKnockoutTournament();
-            case CLASSIC_GROUP_STAGE -> champion = tournament.simulateClassicGroupStage();
-            case MODERN_LEAGUE_PHASE -> champion = tournament.simulateModernLeaguePhase();
-            default -> champion = tournament.simulateKnockoutTournament();
+            case KNOCKOUT_ONLY -> tournament.simulateKnockoutTournament();
+            case CLASSIC_GROUP_STAGE -> tournament.simulateClassicGroupStage();
+            case MODERN_LEAGUE_PHASE -> tournament.simulateModernLeaguePhase();
+            default -> tournament.simulateKnockoutTournament();
         }
 
         for (Match match : tournament.getMatches()) {
@@ -204,7 +202,6 @@ public class ConsoleUI {
         System.out.println(
             BRIGHT_GREEN + "Tournament complete!" + RESET + "\n" +
             tournament.getFormattedReport() + "\n"
-            // BRIGHT_YELLOW + "Champion: " + champion.getName() + RESET + "\n"
         );
         pause();
     }
@@ -569,8 +566,12 @@ public class ConsoleUI {
         return choice == 1;
     }
 
-    // Plays a user-controlled pen shootout
-    private Tournament.PenaltyShootoutResult playPenaltyShootout(Team teamA, Team teamB, Team userTeam) {
+    
+    /*
+        Plays a user-controlled pen shootout
+        Uses 'Tournament' inner class 'PenaltyShootoutResult'
+    */
+    private gamemechanics.tournament.Tournament.PenaltyShootoutResult playPenaltyShootout(Team teamA, Team teamB, Team userTeam) {
         int teamAScore = 0;
         int teamBScore = 0;
         String summary = "Penalty shootout:\n";
@@ -622,13 +623,12 @@ public class ConsoleUI {
         return new Tournament.PenaltyShootoutResult(winner, summary);
     }
 
-    // Simulates a penalty shootout and optionally displays it to the user
     /*
         Simulates pen shootout
         Optional display to user
         Uses 'Tournament' inner class 'PenaltyShootoutResult'
     */
-    private Tournament.PenaltyShootoutResult simulatePenaltyShootout(Team teamA, Team teamB, boolean showResult) {
+    private gamemechanics.tournament.Tournament.PenaltyShootoutResult simulatePenaltyShootout(Team teamA, Team teamB, boolean showResult) {
         int teamAScore = 0;
         int teamBScore = 0;
         String summary = "Penalty shootout:\n";
