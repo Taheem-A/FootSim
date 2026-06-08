@@ -84,8 +84,6 @@ public class ConsoleUI {
                 }
             }
         } while (mainMenuChoice != 6);
-
-        console.close();
     }
 
     /* Game mode methods */
