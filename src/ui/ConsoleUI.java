@@ -155,24 +155,24 @@ public class ConsoleUI {
         tournament.setProgressListener(new Tournament.TournamentProgressListener() {
             @Override
             public void onGroupCompleted(String groupName, ArrayList<TournamentStanding> standings) {
-                if (userTeam != null && standingsContainTeam(standings, userTeam)) {
-                    displayGroupStandingUpdate(groupName, standings, userTeam);
-                }
+                if (userTeam != null && standingsContainTeam(standings, userTeam)) displayGroupStandingUpdate(groupName, standings, userTeam);
             }
 
             @Override
             public void onLeagueRoundCompleted(int roundNumber, ArrayList<TournamentStanding> standings) {
-                if (userTeam != null) {
-                    displayLeaguePhaseUpdate(roundNumber, standings, userTeam);
-                }
+                if (userTeam != null) displayLeaguePhaseUpdate(roundNumber, standings, userTeam);
             }
 
             @Override
-            public void onKnockoutRoundCompleted(String roundName, ArrayList<Match> roundMatches, ArrayList<Team> winners) {
-                if (userTeam != null && roundIsRelevantToUser(roundMatches, winners, userTeam)) {
-                    displayKnockoutBracketUpdate(roundName, roundMatches, winners, userTeam);
-                }
+            public void onKnockoutRoundCompleted(String roundName, ArrayList<Match> roundMatches, ArrayList<Team> winners, ArrayList<String> penaltyNotes) {
+                if (userTeam != null && roundIsRelevantToUser(roundMatches, winners, userTeam)) displayKnockoutBracketUpdate(roundName, roundMatches, winners, penaltyNotes, userTeam);
             }
+        });
+
+        tournament.setPenaltyShootoutRunner((teamA, teamB, userTeamShootout) -> {
+            if (userTeamShootout && tournamentUserMatchMode != TournamentUserMatchMode.SIMULATE_ALL && askPlayPenaltyShootout(teamA, teamB, userTeam)) return playPenaltyShootout(teamA, teamB, userTeam);
+
+            return simulatePenaltyShootout(teamA, teamB, userTeamShootout);
         });
 
         clearConsole();
@@ -203,8 +203,8 @@ public class ConsoleUI {
         clearConsole();
         System.out.println(
             BRIGHT_GREEN + "Tournament complete!" + RESET + "\n" +
-            tournament.getFormattedReport() + "\n" +
-            BRIGHT_YELLOW + "Champion: " + champion.getName() + RESET + "\n"
+            tournament.getFormattedReport() + "\n"
+            // BRIGHT_YELLOW + "Champion: " + champion.getName() + RESET + "\n"
         );
         pause();
     }
@@ -550,6 +550,184 @@ public class ConsoleUI {
     }
     /* */
 
+    // Get user choice on playing interactive pen shootout
+    private boolean askPlayPenaltyShootout(Team teamA, Team teamB, Team userTeam) {
+        clearConsole();
+
+        printHeader("PENALTY SHOOTOUT");
+        System.out.println(
+            teamA.getName() + " vs " + teamB.getName() + "\n" +
+            "You are controlling: " + userTeam.getName() + "\n" +
+            "\n" +
+            "The match is tied after 90 minutes.\n" +
+            "\n" +
+            " [1] Play the penalty shootout\n" +
+            " [2] Simulate the penalty shootout instantly"
+        );
+
+        int choice = validateInput("Your choice: ", 1, 2);
+        return choice == 1;
+    }
+
+    // Plays a user-controlled pen shootout
+    private Tournament.PenaltyShootoutResult playPenaltyShootout(Team teamA, Team teamB, Team userTeam) {
+        int teamAScore = 0;
+        int teamBScore = 0;
+        String summary = "Penalty shootout:\n";
+
+        clearConsole();
+
+        printHeader("PENALTY SHOOTOUT");
+        System.out.println(teamA.getName() + " vs " + teamB.getName());
+        System.out.println("You are controlling: " + userTeam.getName() + "\n");
+
+        for (int i = 0; i < 5; i++) {
+            boolean teamAScored = takePenalty(teamA, teamB, userTeam, i + 1);
+            if (teamAScored) teamAScore++;
+            summary += "  " + teamA.getName() + " penalty " + (i + 1) + ": " + formatPenaltyResult(teamAScored) + " (" + teamAScore + "-" + teamBScore + ")\n";
+            System.out.println(teamA.getName() + " penalty " + (i + 1) + ": " + formatPenaltyResult(teamAScored) + " (" + teamAScore + "-" + teamBScore + ")");
+
+            boolean teamBScored = takePenalty(teamB, teamA, userTeam, i + 1);
+            if (teamBScored) teamBScore++;
+            summary += "  " + teamB.getName() + " penalty " + (i + 1) + ": " + formatPenaltyResult(teamBScored) + " (" + teamAScore + "-" + teamBScore + ")\n";
+            System.out.println(teamB.getName() + " penalty " + (i + 1) + ": " + formatPenaltyResult(teamBScored) + " (" + teamAScore + "-" + teamBScore + ")\n");
+        }
+
+        int suddenDeathRound = 1;
+
+        while (teamAScore == teamBScore) {
+            System.out.println(BRIGHT_YELLOW + "Sudden Death Round " + suddenDeathRound + RESET);
+
+            boolean teamAScored = takePenalty(teamA, teamB, userTeam, suddenDeathRound);
+            if (teamAScored) teamAScore++;
+            summary += "  Sudden Death " + suddenDeathRound + " - " + teamA.getName() + ": " + formatPenaltyResult(teamAScored) + " (" + teamAScore + "-" + teamBScore + ")\n";
+            System.out.println(teamA.getName() + ": " + formatPenaltyResult(teamAScored) + " (" + teamAScore + "-" + teamBScore + ")");
+
+            boolean teamBScored = takePenalty(teamB, teamA, userTeam, suddenDeathRound);
+            if (teamBScored) teamBScore++;
+            summary += "  Sudden Death " + suddenDeathRound + " - " + teamB.getName() + ": " + formatPenaltyResult(teamBScored) + " (" + teamAScore + "-" + teamBScore + ")\n";
+            System.out.println(teamB.getName() + ": " + formatPenaltyResult(teamBScored) + " (" + teamAScore + "-" + teamBScore + ")\n");
+
+            suddenDeathRound++;
+        }
+
+        Team winner;
+        if (teamAScore > teamBScore) winner = teamA;
+        else winner = teamB;
+        summary += "Penalty shootout result: " + teamA.getName() + " " + teamAScore + " - " + teamBScore + " " + teamB.getName() + ". " + winner.getName() + " advances.";
+
+        System.out.println(BRIGHT_GREEN + "Penalty shootout winner: " + winner.getName() + RESET);
+        pause();
+
+        return new Tournament.PenaltyShootoutResult(winner, summary);
+    }
+
+    // Simulates a penalty shootout and optionally displays it to the user
+    /*
+        Simulates pen shootout
+        Optional display to user
+        Uses 'Tournament' inner class 'PenaltyShootoutResult'
+    */
+    private Tournament.PenaltyShootoutResult simulatePenaltyShootout(Team teamA, Team teamB, boolean showResult) {
+        int teamAScore = 0;
+        int teamBScore = 0;
+        String summary = "Penalty shootout:\n";
+
+        for (int i = 0; i < 5; i++) {
+            boolean teamAScored = scorePenalty(teamA, teamB, randomPenaltyDirection());
+            if (teamAScored) teamAScore++;
+            summary += "  " + teamA.getName() + " penalty " + (i + 1) + ": " + formatPenaltyResult(teamAScored) + " (" + teamAScore + "-" + teamBScore + ")\n";
+
+            boolean teamBScored = scorePenalty(teamB, teamA, randomPenaltyDirection());
+            if (teamBScored) teamBScore++;
+            summary += "  " + teamB.getName() + " penalty " + (i + 1) + ": " + formatPenaltyResult(teamBScored) + " (" + teamAScore + "-" + teamBScore + ")\n";
+        }
+
+        int suddenDeathRound = 1;
+
+        while (teamAScore == teamBScore) {
+            boolean teamAScored = scorePenalty(teamA, teamB, randomPenaltyDirection());
+            if (teamAScored) teamAScore++;
+            summary += "  Sudden Death " + suddenDeathRound + " - " + teamA.getName() + ": " + formatPenaltyResult(teamAScored) + " (" + teamAScore + "-" + teamBScore + ")\n";
+
+            boolean teamBScored = scorePenalty(teamB, teamA, randomPenaltyDirection());
+            if (teamBScored) teamBScore++;
+            summary += "  Sudden Death " + suddenDeathRound + " - " + teamB.getName() + ": " + formatPenaltyResult(teamBScored) + " (" + teamAScore + "-" + teamBScore + ")\n";
+
+            suddenDeathRound++;
+        }
+
+        Team winner = teamAScore > teamBScore ? teamA : teamB;
+        summary += "Penalty shootout result: " + teamA.getName() + " " + teamAScore + " - " + teamBScore + " " + teamB.getName() + ". " + winner.getName() + " advances.";
+
+        if (showResult) {
+            clearConsole();
+
+            printHeader("PENALTY SHOOTOUT RESULT");
+            System.out.println(summary + "\n");
+            pause();
+        }
+
+        return new Tournament.PenaltyShootoutResult(winner, summary);
+    }
+
+    // Handles a pen kick
+    private boolean takePenalty(Team shootingTeam, Team defendingTeam, Team userTeam, int kickNumber) {
+        String direction;
+
+        if (shootingTeam == userTeam) {
+            System.out.println(BRIGHT_YELLOW + shootingTeam.getName() + " penalty " + kickNumber + RESET);
+            System.out.println("[1] Shoot Left");
+            System.out.println("[2] Shoot Middle");
+            System.out.println("[3] Shoot Right");
+
+            int choice = validateInput("Your choice: ", 1, 3);
+            direction = switch (choice) {
+                case 1 -> "Left";
+                case 2 -> "Middle";
+                default -> "Right";
+            };
+        } else direction = randomPenaltyDirection();
+
+        return scorePenalty(shootingTeam, defendingTeam, direction);
+    }
+
+    // Evaluates pen result
+    private boolean scorePenalty(Team shootingTeam, Team defendingTeam, String shotDirection) {
+        String keeperDive = randomPenaltyDirection();
+
+        double chance = 65
+            + shootingTeam.getTeamAttackRating() * 0.20
+            - defendingTeam.getTeamGoalkeeperRating() * 0.15;
+
+        if (shotDirection.equals(keeperDive)) chance -= 25;
+        else chance += 8;
+
+        if (shotDirection.equals("Middle")) chance += 3;
+
+        if (chance < 10) chance = 10;
+        if (chance > 95) chance = 95;
+
+        return Math.random() * 100 < chance;
+    }
+
+    // Generates random pen direction
+    private String randomPenaltyDirection() {
+        int direction = (int) (Math.random() * 3);
+
+        return switch (direction) {
+            case 0 -> "Left";
+            case 1 -> "Middle";
+            default -> "Right";
+        };
+    }
+
+    // Helper method to format pen result
+    private String formatPenaltyResult(boolean scored) {
+        if (scored) return "Scored";
+        return "Missed";
+    }
+
     /* Tournament setup methods */
 
     // Get user choice on tournament format
@@ -768,7 +946,7 @@ public class ConsoleUI {
         pause();
     }
 
-    private void displayKnockoutBracketUpdate(String roundName, ArrayList<Match> roundMatches, ArrayList<Team> winners, Team userTeam) {
+    private void displayKnockoutBracketUpdate(String roundName, ArrayList<Match> roundMatches, ArrayList<Team> winners, ArrayList<String> penaltyNotes, Team userTeam) {
         clearConsole();
 
         printHeader("KNOCKOUT BRACKET UPDATE");
@@ -780,6 +958,11 @@ public class ConsoleUI {
             String marker = (match.getHomeTeam() == userTeam || match.getAwayTeam() == userTeam) ? BRIGHT_YELLOW + "  <== Your Match" + RESET: "";
 
             System.out.println("[" + (i + 1) + "] " + match.getScoreLine() + " | Advances: " + winner.getName() + marker);
+
+            if (i < penaltyNotes.size() && !penaltyNotes.get(i).isEmpty()) {
+                String[] lines = penaltyNotes.get(i).split("\\n");
+                for (String line : lines) System.out.println("    " + line);
+            }
         }
 
         System.out.println();
