@@ -1,0 +1,11 @@
+# Ignore compiled Java bytecode (the binaries)
+bin/
+*.class
+
+# Ignore VS Code specific configurations and extensions
+.vscode/
+.VSCodeCounter/
+
+# Optional: Ignore OS-generated files
+.DS_Store
+Thumbs.db
