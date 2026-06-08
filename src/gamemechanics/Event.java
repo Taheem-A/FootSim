@@ -35,16 +35,22 @@ public class Event {
 
     // Constructor for big chance events
     public Event(int minute, EventType type, Team team, Player player, String description, boolean bigChance, ArrayList<String> choices) {
-        this.minute = validateMinute(minute);
-        this.type = validateType(type);
-        this.description = validateDescription(description);
+        if (minute < 0 || minute > 120) throw new IllegalArgumentException("Minute must be between 0 and 120.");
+        this.minute = minute;
+
+        if (type == null) throw new IllegalArgumentException("Event type cannot be null.");
+        this.type = type;
+
+        if (description == null || description.trim().isEmpty()) throw new IllegalArgumentException("Event description cannot be blank/empty.");
+        this.description = description.trim();
+        
         this.bigChance = bigChance;
         this.choices = new ArrayList<>();
         this.selectedChoice = "";
         this.successful = false;
         this.resolved = false;
 
-        if (requiresTeam(this.type) && team == null) {
+        if ((!(this.type == EventType.KICKOFF || this.type == EventType.HALF_TIME || this.type == EventType.FULL_TIME || this.type == EventType.COMMENTARY)) && team == null) {
             throw new IllegalArgumentException("This event type requires a team.");
         }
 
@@ -60,16 +66,6 @@ public class Event {
                 addChoice(choice);
             }
         }
-    }
-
-    // Constructor overloaded to support previous String based code
-    public Event(int minute, String type, Team team, Player player, String description) {
-        this(minute, parseType(type), team, player, description, false, new ArrayList<>());
-    }
-
-    // Constructor overloaded to support previous String based code for big chance events
-    public Event(int minute, String type, Team team, Player player, String description, boolean bigChance, ArrayList<String> choices) {
-        this(minute, parseType(type), team, player, description, bigChance, choices);
     }
 
     /* Getters */
@@ -155,14 +151,6 @@ public class Event {
     /* */
 
     /* Event checking methods */
-    public boolean hasTeam() {
-        return this.team != null;
-    }
-
-    public boolean hasPlayer() {
-        return this.player != null;
-    }
-
     public boolean isGoal() {
         return this.type == EventType.GOAL;
     }
@@ -173,54 +161,6 @@ public class Event {
 
     public boolean isCard() {
         return this.type == EventType.YELLOW_CARD || this.type == EventType.RED_CARD;
-    }
-
-    public boolean isScoringChance() {
-        return this.type == EventType.SHOT || this.type == EventType.BIG_CHANCE || this.type == EventType.PENALTY || this.type == EventType.GOAL;
-    }
-    /* */
-
-    /* Validation methods */
-    private int validateMinute(int minute) {
-        if (minute < 0 || minute > 120) {
-            throw new IllegalArgumentException("Minute must be between 0 and 120.");
-        }
-
-        return minute;
-    }
-
-    private EventType validateType(EventType type) {
-        if (type == null) {
-            throw new IllegalArgumentException("Event type cannot be null.");
-        }
-
-        return type;
-    }
-
-    private static EventType parseType(String type) {
-        if (type == null || type.trim().isEmpty()) {
-            throw new IllegalArgumentException("Event type cannot be blank/empty.");
-        }
-
-        type = type.trim().toUpperCase().replace(" ", "_");
-
-        try {
-            return EventType.valueOf(type);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid event type.");
-        }
-    }
-
-    private String validateDescription(String description) {
-        if (description == null || description.trim().isEmpty()) {
-            throw new IllegalArgumentException("Event description cannot be blank/empty.");
-        }
-
-        return description.trim();
-    }
-
-    private boolean requiresTeam(EventType type) {
-        return !(type == EventType.KICKOFF || type == EventType.HALF_TIME || type == EventType.FULL_TIME || type == EventType.COMMENTARY);
     }
     /* */
 

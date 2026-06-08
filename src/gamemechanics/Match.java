@@ -29,7 +29,8 @@ public class Match {
 
     // Constructor
     public Match(Team homeTeam, Team awayTeam) {
-        validateTeams(homeTeam, awayTeam);
+        if (homeTeam == null || awayTeam == null) throw new IllegalArgumentException("Both teams must exist.");
+        if (homeTeam == awayTeam) throw new IllegalArgumentException("A team cannot play against itself.");
 
         this.homeTeam = homeTeam;
         this.awayTeam = awayTeam;
@@ -259,7 +260,6 @@ public class Match {
 
         this.yellowCardedPlayers.removeIf(p -> p.getName().equalsIgnoreCase(player.getName()));
     }
-    /* */
 
     /* Display methods */
     public String getScoreLine() {
@@ -286,6 +286,7 @@ public class Match {
 
         return result;
     }
+    /* */
 
     // Overridden 'toString()' method
     @Override
@@ -315,22 +316,13 @@ public class Match {
     /* */
 
     /* Helper Methods */
-    private void validateTeams(Team homeTeam, Team awayTeam) {
-        if (homeTeam == null || awayTeam == null) throw new IllegalArgumentException("Both teams must exist.");
-        if (homeTeam == awayTeam) throw new IllegalArgumentException("A team cannot play against itself.");
-    }
-
     public void validateMatchInProgress() {
         if (!this.started) throw new IllegalStateException("Match has not started yet.");
         if (this.finished) throw new IllegalStateException("Match has already finished.");
     }
 
     public void validateTeamInMatch(Team team) {
-        if (!isTeamInMatch(team)) throw new IllegalArgumentException("Team must be part of this match.");
-    }
-
-    public boolean isTeamInMatch(Team team) {
-        return team != null && (team == this.homeTeam || team == this.awayTeam);
+        if (!(team != null && (team == this.homeTeam || team == this.awayTeam))) throw new IllegalArgumentException("Team must be part of this match.");
     }
 
     public boolean isHomeTeam(Team team) {

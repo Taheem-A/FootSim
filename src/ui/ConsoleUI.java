@@ -29,7 +29,7 @@ public class ConsoleUI {
     private static final String BRIGHT_CYAN = "\033[96m";
     private static final String BRIGHT_YELLOW = "\033[93m";
 
-    // All necessary fields
+    // Instance fields
     private final Scanner console;
     private final SimulationEngine engine;
     private final MatchHistory matchHistory;
@@ -38,7 +38,7 @@ public class ConsoleUI {
     private Match currentMatch;
     private Team controlledTeam;
 
-    // This enum stays inside ConsoleUI because it only controls how the UI handles user-team tournament matches.
+    // Enum to manage how user-team matches are handled in tournaments
     private enum TournamentUserMatchMode {
         SIMULATE_ALL,
         ASK_BEFORE_EACH,
@@ -89,6 +89,10 @@ public class ConsoleUI {
     }
 
     /* Game mode methods */
+
+    /*
+        Quick match: Match between two random teams
+    */
     private void runQuickMatch() {
         Team homeTeam = TeamFactory.getRandomTeam(availableTeams, null);
         Team awayTeam = TeamFactory.getRandomTeam(availableTeams, homeTeam);
@@ -98,12 +102,13 @@ public class ConsoleUI {
         runMatchCentre();
     }
 
+    /*
+        Custom match: Match with user-selected teams
+    */
     private void runCustomMatch() {
         clearConsole();
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║          CUSTOM MATCH SETUP          ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
+
+        printHeader("CUSTOM MATCH SETUP");
 
         System.out.println(BRIGHT_YELLOW + "Choose the home team:" + RESET);
         Team homeTeam = chooseTeamByLeague(new ArrayList<>());
@@ -119,22 +124,16 @@ public class ConsoleUI {
         runMatchCentre();
     }
 
+    /*
+        Tournament setup: Configure and run a tournament
+    */
     private void runTournamentSetup() {
         clearConsole();
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║          TOURNAMENT SETUP            ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
+
+        printHeader("TOURNAMENT SETUP");
 
         TournamentFormat format = chooseTournamentFormat();
         int requiredTeams = format.getDefaultTeamCount();
-
-        if (availableTeams.size() < requiredTeams) {
-            System.out.println(BRIGHT_RED + "Not enough teams available." + RESET);
-            System.out.println("This format requires " + requiredTeams + " teams, but only " + availableTeams.size() + " are loaded.");
-            pause();
-            return;
-        }
 
         Team userTeam = chooseOptionalUserTeam();
         ArrayList<Team> selectedTeams = buildTournamentTeamList(requiredTeams, userTeam);
@@ -144,17 +143,11 @@ public class ConsoleUI {
         tournament.setMatchRunner((homeTeam, awayTeam, userTeamMatch) -> {
             if (!userTeamMatch) return engine.simulateMatch(homeTeam, awayTeam);
 
-            if (tournamentUserMatchMode == TournamentUserMatchMode.SIMULATE_ALL) {
-                return simulateUserTournamentMatchWithResult(homeTeam, awayTeam, userTeam);
-            }
+            if (tournamentUserMatchMode == TournamentUserMatchMode.SIMULATE_ALL) return simulateUserTournamentMatchWithResult(homeTeam, awayTeam, userTeam);
 
-            if (tournamentUserMatchMode == TournamentUserMatchMode.PLAY_ALL) {
-                return playInteractiveTournamentMatch(homeTeam, awayTeam, userTeam);
-            }
+            if (tournamentUserMatchMode == TournamentUserMatchMode.PLAY_ALL) return playInteractiveTournamentMatch(homeTeam, awayTeam, userTeam);
 
-            if (askPlayTournamentMatch(homeTeam, awayTeam, userTeam)) {
-                return playInteractiveTournamentMatch(homeTeam, awayTeam, userTeam);
-            }
+            if (askPlayTournamentMatch(homeTeam, awayTeam, userTeam)) return playInteractiveTournamentMatch(homeTeam, awayTeam, userTeam);
 
             return simulateUserTournamentMatchWithResult(homeTeam, awayTeam, userTeam);
         });
@@ -183,13 +176,15 @@ public class ConsoleUI {
         });
 
         clearConsole();
-        System.out.println(BRIGHT_GREEN + "Tournament created!" + RESET);
-        System.out.println("Format: " + format.getDisplayName());
-        System.out.println("Teams: " + selectedTeams.size());
+
+        System.out.println(
+            BRIGHT_GREEN + "Tournament created!" + RESET + "\n" +
+            "Format: " + format.getDisplayName() + "\n" +
+            "Teams: " + selectedTeams.size() + "\n"
+        );
+
         if (userTeam != null) System.out.println("User Team: " + userTeam.getName());
-        System.out.println("User-Team Match Mode: " + formatTournamentUserMatchMode(tournamentUserMatchMode));
-        System.out.println();
-        System.out.println("Simulating tournament...");
+        System.out.println("User-Team Match Mode: " + formatTournamentUserMatchMode(tournamentUserMatchMode) + "\n");
         pause();
 
         Team champion;
@@ -206,10 +201,11 @@ public class ConsoleUI {
         }
 
         clearConsole();
-        System.out.println(BRIGHT_GREEN + "Tournament complete!" + RESET);
-        System.out.println();
-        System.out.println(tournament.getFormattedReport());
-        System.out.println(BRIGHT_YELLOW + "Champion: " + champion.getName() + RESET);
+        System.out.println(
+            BRIGHT_GREEN + "Tournament complete!" + RESET + "\n" +
+            tournament.getFormattedReport() + "\n" +
+            BRIGHT_YELLOW + "Champion: " + champion.getName() + RESET + "\n"
+        );
         pause();
     }
     /* */
@@ -243,49 +239,49 @@ public class ConsoleUI {
         } while (!returnToMainMenu);
     }
 
+    // Handles playing an interactive tournament match
     private Match playInteractiveTournamentMatch(Team homeTeam, Team awayTeam, Team userTeam) {
         Match match = new Match(homeTeam, awayTeam);
         this.currentMatch = match;
         this.controlledTeam = userTeam;
 
         clearConsole();
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║      USER TEAM TOURNAMENT MATCH      ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
-        System.out.println(homeTeam.getName() + " vs " + awayTeam.getName());
-        System.out.println("You are controlling: " + userTeam.getName());
+
+        printHeader("USER TEAM TOURNAMENT MATCH");
+        System.out.println(homeTeam.getName() + " vs " + awayTeam.getName() + "\n" + "You are controlling: " + userTeam.getName() + "\n");
+
         pause();
 
         playInteractiveMatch(match, userTeam, false);
         return match;
     }
 
+    // Simulates a tournament match
     private Match simulateUserTournamentMatchWithResult(Team homeTeam, Team awayTeam, Team userTeam) {
         Match match = engine.simulateMatch(homeTeam, awayTeam);
 
         clearConsole();
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║       USER TEAM MATCH SIMULATED      ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
-        System.out.println(homeTeam.getName() + " vs " + awayTeam.getName());
-        System.out.println("You are controlling: " + userTeam.getName());
-        System.out.println();
-        System.out.println(BRIGHT_YELLOW + "Result:" + RESET);
-        System.out.println(match.getScoreLine());
-        System.out.println("Winner after 90': " + match.getWinner());
-        System.out.println();
 
-        if (match.getHomeScore() == match.getAwayScore()) {
-            System.out.println(BRIGHT_BLACK + "Note: If this is a knockout match, penalties will decide who advances in the bracket update." + RESET);
-            System.out.println();
-        }
+        printHeader("USER TEAM MATCH SIMULATED");
+        System.out.println(
+            homeTeam.getName() + " vs " + awayTeam.getName() + "\n" +
+            "You are controlling: " + userTeam.getName() + "\n" +
+
+            "\n" +
+
+            BRIGHT_YELLOW + "Result:" + RESET + "\n" +
+            match.getScoreLine() + "\n" +
+            "Winner after 90': " + match.getWinner() + "\n"
+        );
+
+        if (match.getHomeScore() == match.getAwayScore()) System.out.println(BRIGHT_BLACK + "Note: If this is a knockout match, penalties will decide who advances in the bracket update." + RESET + "\n");
 
         pause();
+
         return match;
     }
 
+    // Plays an interactive match
     private void playInteractiveMatch(Match match, Team userTeam, boolean saveToHistory) {
         clearConsole();
 
@@ -302,7 +298,12 @@ public class ConsoleUI {
         }
 
         setupMatchTactics(match, userTeam);
-        printInteractiveMatchHeader(match, userTeam);
+        
+        printHeader("FOOTSIM - INTERACTIVE MATCH");
+        System.out.println("\n" + match.getHomeTeam().getName() + " vs " + match.getAwayTeam().getName() + "\n");
+
+        if (userTeam != null) System.out.println("You are controlling: " + userTeam.getName() + "\n");
+        else System.out.println("No controlled team. Big chances will be auto-resolved.\n");
 
         while (!match.isFinished()) {
             ArrayList<Event> newEvents = engine.advanceMatch(match, 1, false);
@@ -316,47 +317,29 @@ public class ConsoleUI {
                 System.out.println();
             }
 
-            if (!match.isFinished() && shouldAskManagerDecision(match)) {
-                askManagerDecision(match, userTeam);
-            }
+            if (!match.isFinished() && shouldAskManagerDecision(match)) askManagerDecision(match, userTeam);
 
-            if (!match.isFinished() && match.getCurrentMinute() == 45 && userTeam != null) {
-                askHalfTimeTeamTalk(match, userTeam);
-            }
+            if (!match.isFinished() && match.getCurrentMinute() == 45 && userTeam != null) askHalfTimeTeamTalk(match, userTeam);
 
             sleep(250);
         }
 
         if (saveToHistory) addCurrentMatchToHistory();
 
-        System.out.println();
-        System.out.println(BRIGHT_GREEN + "Match finished!" + RESET);
+        System.out.println("\n" + BRIGHT_GREEN + "Match finished!" + RESET + "\n");
         pause();
         displayMatchSummary();
         pause();
     }
 
-    private void printInteractiveMatchHeader(Match match, Team userTeam) {
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║        FOOTSIM - INTERACTIVE MATCH   ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
-        System.out.println(match.getHomeTeam().getName() + " vs " + match.getAwayTeam().getName());
-
-        if (userTeam != null) System.out.println("You are controlling: " + userTeam.getName());
-        else System.out.println("No controlled team. Big chances will be auto-resolved.");
-
-        System.out.println();
-    }
-
+    // Determines if manager decision is required
     private boolean shouldAskManagerDecision(Match match) {
-        int minute = match.getCurrentMinute();
-        return minute == 15 || minute == 30 || minute == 60 || minute == 75;
+        int min = match.getCurrentMinute();
+        return min == 15 || min == 30 || min == 60 || min == 75;
     }
 
+    // Pre-match tactic setup
     private void setupMatchTactics(Match match, Team userTeam) {
-        if (match.hasStarted()) return;
-
         if (userTeam != null) {
             TacticalStyle userStyle = chooseTacticalStyle(userTeam);
             match.setTactics(userTeam, new TeamTactics(userStyle));
@@ -367,6 +350,7 @@ public class ConsoleUI {
         }
     }
 
+    // Instantly simulates the current match
     private void simulateRestOfMatch() {
         clearConsole();
 
@@ -396,6 +380,7 @@ public class ConsoleUI {
         pause();
     }
 
+    // Displays live events
     private void displayLiveEvents(ArrayList<Event> events) {
         for (Event event : events) {
             System.out.println(formatEvent(event));
@@ -404,10 +389,12 @@ public class ConsoleUI {
         System.out.println("Score: " + currentMatch.getScoreLine());
         System.out.println("Momentum: "
             + currentMatch.getHomeTeam().getName() + " (" + currentMatch.getMomentumDescription(currentMatch.getHomeTeam()) + ") | "
-            + currentMatch.getAwayTeam().getName() + " (" + currentMatch.getMomentumDescription(currentMatch.getAwayTeam()) + ")");
+            + currentMatch.getAwayTeam().getName() + " (" + currentMatch.getMomentumDescription(currentMatch.getAwayTeam()) + ")"
+        );
         System.out.println();
     }
 
+    // Resolve chance events
     private void resolveChanceEvents(Match match, ArrayList<Event> events, Team userTeam) {
         for (Event event : events) {
             if (event.isBigChance() && !event.isResolved()) {
@@ -424,16 +411,14 @@ public class ConsoleUI {
                 System.out.println();
                 System.out.println(BRIGHT_YELLOW + "Result:" + RESET);
 
-                for (Event resultEvent : resultEvents) {
-                    System.out.println(formatEvent(resultEvent));
-                }
+                for (Event resultEvent : resultEvents) System.out.println(formatEvent(resultEvent));
 
-                System.out.println("Score: " + match.getScoreLine());
-                System.out.println();
+                System.out.println("Score: " + match.getScoreLine() + "\n");
             }
         }
     }
 
+    // Helper function to get user choice for chance events
     private String askForChanceChoice(Event event) {
         ArrayList<String> choices = event.getChoices();
 
@@ -453,6 +438,8 @@ public class ConsoleUI {
     /* */
 
     /* Interactive manager methods */
+
+    // Choose which team to control
     private Team chooseControlledTeam(Match match) {
         clearConsole();
         System.out.println(BRIGHT_YELLOW + "Do you want to control a team in this match?" + RESET);
@@ -467,21 +454,16 @@ public class ConsoleUI {
         return null;
     }
 
+    // Choose pre-match tactics
     private TacticalStyle chooseTacticalStyle(Team team) {
         clearConsole();
+
         TacticalStyle[] styles = TacticalStyle.values();
 
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║          PRE-MATCH TACTICS           ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
-        System.out.println("Choose tactical style for " + team.getName() + ":");
-        System.out.println();
+        printHeader("PRE-MATCH TACTICS");
+        System.out.println("Choose tactical style for " + team.getName() + ":\n");
 
-        for (int i = 0; i < styles.length; i++) {
-            System.out.println("[" + (i + 1) + "] " + styles[i].getDisplayName());
-            System.out.println("    " + styles[i].getDescription());
-        }
+        for (int i = 0; i < styles.length; i++) System.out.println(" [" + (i + 1) + "] " + styles[i].getDisplayName() + "\n     " + styles[i].getDescription());
 
         int choice = validateInput("Your choice: ", 1, styles.length);
         clearConsole();
@@ -489,10 +471,11 @@ public class ConsoleUI {
         return styles[choice - 1];
     }
 
+    // Get user decision for manager decisions
     private void askManagerDecision(Match match, Team userTeam) {
         if (userTeam == null) return;
 
-        printInMatchDecisionDivider("MANAGER DECISION");
+        printHeader("MANAGER DECISION");
 
         ManagerDecision[] decisions = ManagerDecision.values();
 
@@ -520,49 +503,62 @@ public class ConsoleUI {
         System.out.println();
     }
 
+    // Get user decision for helf-time team talk decision
     private void askHalfTimeTeamTalk(Match match, Team userTeam) {
         TeamTalk[] talks = TeamTalk.values();
 
-        printInMatchDecisionDivider("HALF-TIME TALK");
+        printHeader("HALF-TIME TALK");
 
-        System.out.println("Half-Time: " + match.getScoreLine());
-        System.out.println();
+        System.out.println("Half-Time: " + match.getScoreLine() + "\n");
         System.out.println(BRIGHT_YELLOW + "Choose your team talk:" + RESET);
 
-        for (int i = 0; i < talks.length; i++) {
-            System.out.println("[" + (i + 1) + "] " + talks[i].getDisplayName());
-            System.out.println("    " + talks[i].getDescription());
-        }
+        for (int i = 0; i < talks.length; i++) System.out.println(" [" + (i + 1) + "] " + talks[i].getDisplayName() + "\n     " + talks[i].getDescription());
 
         int choice = validateInput("Your choice: ", 1, talks.length);
         TeamTalk talk = talks[choice - 1];
 
         match.applyTeamTalk(userTeam, talk);
 
-        System.out.println();
-        System.out.println(BRIGHT_GREEN + "Team talk applied: " + talk.getDisplayName() + RESET);
-        System.out.println("Second half continues...");
+        System.out.println("\n" + BRIGHT_GREEN + "Team talk applied: " + talk.getDisplayName() + RESET + "\n" + "\n" + "Second half continues...\n");
+    }
+
+    // Display helper method to print headers
+    private void printHeader(String title) {
+        int totalWidth = 36;
+        int titleLength = title.length();
+        
+        int leftPadding = (totalWidth - titleLength) / 2;
+        int rightPadding = totalWidth - titleLength - leftPadding;
+
+        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
+        
+        System.out.print("║ ");
+        printSpaces(leftPadding);
+        
+        System.out.print(title);
+        
+        printSpaces(rightPadding);
+        System.out.println(" ║");
+        
+        System.out.println("╚══════════════════════════════════════╝" + RESET);
         System.out.println();
     }
 
-    private void printInMatchDecisionDivider(String title) {
-        System.out.println();
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.printf("║ %-36s ║%n", title);
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
+    // Helper method to print N spaces
+    private void printSpaces(int count) {
+        for (int i = 0; i < count; i++) System.out.print(" ");
     }
     /* */
 
     /* Tournament setup methods */
+
+    // Get user choice on tournament format
     private TournamentFormat chooseTournamentFormat() {
         TournamentFormat[] formats = TournamentFormat.values();
 
         System.out.println(BRIGHT_YELLOW + "Choose tournament format:" + RESET);
 
-        for (int i = 0; i < formats.length; i++) {
-            System.out.println("[" + (i + 1) + "] " + formats[i].getDisplayName() + " (" + formats[i].getDefaultTeamCount() + " teams)");
-        }
+        for (int i = 0; i < formats.length; i++) System.out.println("[" + (i + 1) + "] " + formats[i].getDisplayName() + " (" + formats[i].getDefaultTeamCount() + " teams)");
 
         int choice = validateInput("Choose format: ", 1, formats.length);
         clearPreviousLines(formats.length + 2);
@@ -570,6 +566,7 @@ public class ConsoleUI {
         return formats[choice - 1];
     }
 
+    // Get user choice on team control
     private Team chooseOptionalUserTeam() {
         System.out.println();
         System.out.println(BRIGHT_YELLOW + "Do you want to choose a team to play as?" + RESET);
@@ -586,6 +583,7 @@ public class ConsoleUI {
         return chooseTeamByLeague(new ArrayList<>());
     }
 
+    // Get user choice on user match mode
     private TournamentUserMatchMode chooseTournamentUserMatchMode(Team userTeam) {
         if (userTeam == null) return TournamentUserMatchMode.SIMULATE_ALL;
 
@@ -605,23 +603,24 @@ public class ConsoleUI {
         };
     }
 
+    // Get user choice on interactive or instant match simulation 
     private boolean askPlayTournamentMatch(Team homeTeam, Team awayTeam, Team userTeam) {
         clearConsole();
 
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║        YOUR TOURNAMENT MATCH         ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
-        System.out.println(homeTeam.getName() + " vs " + awayTeam.getName());
-        System.out.println("You are controlling: " + userTeam.getName());
-        System.out.println();
-        System.out.println("[1] Play this match interactively");
-        System.out.println("[2] Simulate this match instantly");
+        printHeader("YOUR TOURNAMENT MATCH");
+        System.out.println(
+            homeTeam.getName() + " vs " + awayTeam.getName() + "\n" +
+            "You are controlling: " + userTeam.getName() + "\n" +
+            "\n" +
+            "[1] Play this match interactively\n" +
+            "[2] Simulate this match instantly"
+        );
 
         int choice = validateInput("Your choice: ", 1, 2);
         return choice == 1;
     }
 
+    // Formatter for tournament user match mode
     private String formatTournamentUserMatchMode(TournamentUserMatchMode mode) {
         return switch (mode) {
             case SIMULATE_ALL -> "Simulate all matches";
@@ -630,6 +629,7 @@ public class ConsoleUI {
         };
     }
 
+    // Build tournament teams based on user choice(s)
     private ArrayList<Team> buildTournamentTeamList(int requiredTeams, Team userTeam) {
         ArrayList<Team> selectedTeams = new ArrayList<>();
 
@@ -655,6 +655,7 @@ public class ConsoleUI {
         return selectedTeams;
     }
 
+    // Helper method: Get some teams from user; select rest randomly
     private void chooseSomeTeamsThenRandomFill(ArrayList<Team> selectedTeams, int requiredTeams) {
         int remainingSlots = requiredTeams - selectedTeams.size();
 
@@ -677,6 +678,7 @@ public class ConsoleUI {
         fillRemainingTeamsRandomly(selectedTeams, requiredTeams);
     }
 
+    // Select teams manually
     private void chooseAllRemainingTeamsManually(ArrayList<Team> selectedTeams, int requiredTeams) {
         while (selectedTeams.size() < requiredTeams) {
             System.out.println();
@@ -687,38 +689,29 @@ public class ConsoleUI {
         }
     }
 
+    // Select teams randomly
     private void fillRemainingTeamsRandomly(ArrayList<Team> selectedTeams, int requiredTeams) {
         ArrayList<Team> remainingTeams = new ArrayList<>();
 
-        for (Team team : availableTeams) {
-            if (!selectedTeams.contains(team)) {
-                remainingTeams.add(team);
-            }
-        }
+        for (Team team : availableTeams) if (!selectedTeams.contains(team)) remainingTeams.add(team);
 
-        if (remainingTeams.size() + selectedTeams.size() < requiredTeams) {
-            throw new IllegalStateException("Not enough teams available to fill the tournament.");
-        }
+        if (remainingTeams.size() + selectedTeams.size() < requiredTeams) throw new IllegalStateException("Not enough teams available to fill the tournament.");
 
-        while (selectedTeams.size() < requiredTeams) {
-            Team randomTeam = remainingTeams.remove((int) (Math.random() * remainingTeams.size()));
-            selectedTeams.add(randomTeam);
-        }
+        while (selectedTeams.size() < requiredTeams) selectedTeams.add(remainingTeams.remove((int) (Math.random() * remainingTeams.size())));
 
-        System.out.println();
-        System.out.println("Randomly filled remaining teams.");
+        System.out.println("\nRandomly filled remaining teams.");
     }
     /* */
 
-    /* Tournament update display methods */
+    /* Tournament display methods */
+    // Helper method to check team within standings
     private boolean standingsContainTeam(ArrayList<TournamentStanding> standings, Team team) {
-        for (TournamentStanding standing : standings) {
-            if (standing.getTeam() == team) return true;
-        }
+        for (TournamentStanding standing : standings) if (standing.getTeam() == team) return true;
 
         return false;
     }
 
+    // Helper method to check team relevancy
     private boolean roundIsRelevantToUser(ArrayList<Match> matches, ArrayList<Team> winners, Team userTeam) {
         for (Match match : matches) {
             if (match.getHomeTeam() == userTeam || match.getAwayTeam() == userTeam) return true;
@@ -734,12 +727,8 @@ public class ConsoleUI {
     private void displayGroupStandingUpdate(String groupName, ArrayList<TournamentStanding> standings, Team userTeam) {
         clearConsole();
 
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║        GROUP STAGE UPDATE            ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
-        System.out.println(BRIGHT_YELLOW + groupName + " Standings" + RESET);
-        System.out.println();
+        printHeader("GROUP STAGE UPDATE");
+        System.out.println(BRIGHT_YELLOW + groupName + " Standings" + RESET + "\n");
 
         for (int i = 0; i < standings.size(); i++) {
             TournamentStanding standing = standings.get(i);
@@ -755,29 +744,24 @@ public class ConsoleUI {
     private void displayLeaguePhaseUpdate(int roundNumber, ArrayList<TournamentStanding> standings, Team userTeam) {
         clearConsole();
 
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║        LEAGUE PHASE UPDATE           ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
-        System.out.println("After League Phase Round " + roundNumber);
-        System.out.println();
+        printHeader("LEAGUE PHASE UPDATE");
+        System.out.println("After League Phase Round " + roundNumber + "\n");
 
         int userRank = findTeamRank(standings, userTeam);
-        System.out.println("Your current rank: " + userRank + getRankSuffix(userRank));
-        System.out.println();
+        System.out.println("Your current rank: " + userRank + getRankSuffix(userRank) + "\n");
 
         int displayLimit = Math.min(12, standings.size());
         for (int i = 0; i < displayLimit; i++) {
             TournamentStanding standing = standings.get(i);
-            String marker = standing.getTeam() == userTeam ? "  <== Your Team" : "";
+            String marker = standing.getTeam() == userTeam ? BRIGHT_YELLOW + "  <== Your Team" + RESET : "";
             String status = getLeaguePhaseStatus(i + 1);
-            System.out.println((i + 1) + ". " + standing.getFormattedStanding() + status + marker);
+            System.out.println(String.format("%2d", (i + 1)) + ". " + standing.getFormattedStanding() + status + marker);
         }
 
         if (userRank > displayLimit) {
             TournamentStanding userStanding = standings.get(userRank - 1);
             System.out.println("...");
-            System.out.println(userRank + ". " + userStanding.getFormattedStanding() + getLeaguePhaseStatus(userRank) + "  <== Your Team");
+            System.out.println(String.format("%2d", userRank) + ". " + userStanding.getFormattedStanding() + getLeaguePhaseStatus(userRank) + BRIGHT_YELLOW + "  <== Your Team" + RESET);
         }
 
         System.out.println();
@@ -787,17 +771,13 @@ public class ConsoleUI {
     private void displayKnockoutBracketUpdate(String roundName, ArrayList<Match> roundMatches, ArrayList<Team> winners, Team userTeam) {
         clearConsole();
 
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║        KNOCKOUT BRACKET UPDATE       ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
-        System.out.println(BRIGHT_YELLOW + roundName + " Results" + RESET);
-        System.out.println();
+        printHeader("KNOCKOUT BRACKET UPDATE");
+        System.out.println(BRIGHT_YELLOW + roundName + " Results" + RESET + "\n");
 
         for (int i = 0; i < roundMatches.size(); i++) {
             Match match = roundMatches.get(i);
             Team winner = winners.get(i);
-            String marker = (match.getHomeTeam() == userTeam || match.getAwayTeam() == userTeam) ? "  <== Your Match" : "";
+            String marker = (match.getHomeTeam() == userTeam || match.getAwayTeam() == userTeam) ? BRIGHT_YELLOW + "  <== Your Match" + RESET: "";
 
             System.out.println("[" + (i + 1) + "] " + match.getScoreLine() + " | Advances: " + winner.getName() + marker);
         }
@@ -808,37 +788,33 @@ public class ConsoleUI {
             System.out.println(BRIGHT_YELLOW + "Next Round Matchups" + RESET);
             for (int i = 0; i < winners.size(); i += 2) {
                 if (i + 1 < winners.size()) {
-                    String marker = (winners.get(i) == userTeam || winners.get(i + 1) == userTeam) ? "  <== Your Match" : "";
+                    String marker = (winners.get(i) == userTeam || winners.get(i + 1) == userTeam) ? BRIGHT_YELLOW + "  <== Your Match" + RESET : "";
                     System.out.println("- " + winners.get(i).getName() + " vs " + winners.get(i + 1).getName() + marker);
                 }
             }
-        } else {
-            System.out.println(BRIGHT_GREEN + "Tournament Champion: " + winners.get(0).getName() + RESET);
-        }
+        } else System.out.println(BRIGHT_GREEN + "Tournament Champion: " + winners.get(0).getName() + RESET);
 
-        if (!winners.contains(userTeam)) {
-            System.out.println();
-            System.out.println(BRIGHT_RED + "Your team has been eliminated." + RESET);
-        }
+        if (!winners.contains(userTeam)) System.out.println("\n" + BRIGHT_RED + "Your team has been eliminated." + RESET);
 
         System.out.println();
         pause();
     }
 
+    // Helper method to retireve team standings rank
     private int findTeamRank(ArrayList<TournamentStanding> standings, Team team) {
-        for (int i = 0; i < standings.size(); i++) {
-            if (standings.get(i).getTeam() == team) return i + 1;
-        }
+        for (int i = 0; i < standings.size(); i++) if (standings.get(i).getTeam() == team) return i + 1;
 
         return -1;
     }
 
+    // Helper method to get league phase progression status
     private String getLeaguePhaseStatus(int rank) {
         if (rank <= 8) return " [Round of 16]";
         if (rank <= 24) return " [Play-Offs]";
         return " [Eliminated]";
     }
 
+    // Helper method for formatting
     private String getRankSuffix(int rank) {
         if (rank % 100 >= 11 && rank % 100 <= 13) return "th";
         return switch (rank % 10) {
@@ -905,11 +881,8 @@ public class ConsoleUI {
 
     private void displayTeamListByLeague() {
         clearConsole();
-
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║            AVAILABLE TEAMS           ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
+        
+        printHeader("AVAILABLE TEAMS");
 
         for (String league : teamsByLeague.keySet()) {
             System.out.println(BRIGHT_YELLOW + league + RESET);
@@ -929,10 +902,7 @@ public class ConsoleUI {
 
         if (!checkMatchExists()) return;
 
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║             TEAM INFORMATION         ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
+        printHeader("TEAM INFORMATION");
 
         System.out.println(BRIGHT_YELLOW + "HOME TEAM" + RESET);
         System.out.println(currentMatch.getHomeTeam());
@@ -948,11 +918,7 @@ public class ConsoleUI {
 
         if (!checkMatchExists()) return;
 
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║             MATCH TIMELINE           ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
-
+        printHeader("MATCH TIMELINE");
         System.out.println(currentMatch.getFormattedTimeline());
     }
 
@@ -961,23 +927,26 @@ public class ConsoleUI {
 
         if (!checkMatchExists()) return;
 
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║             MATCH SUMMARY            ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
-        System.out.println();
+        
+        printHeader("MATCH SUMMARY");
 
-        System.out.println("Final Score: " + currentMatch.getScoreLine());
-        System.out.println("Winner: " + currentMatch.getWinner());
-        System.out.println("Yellow Cards: " + currentMatch.getYellowCardedPlayers().size());
-        System.out.println("Red Cards: " + currentMatch.getRedCardedPlayers().size());
-        System.out.println();
-        System.out.println("Home Tactics: " + currentMatch.getTactics(currentMatch.getHomeTeam()));
-        System.out.println("Away Tactics: " + currentMatch.getTactics(currentMatch.getAwayTeam()));
-        System.out.println("Home Momentum: " + currentMatch.getMomentumDescription(currentMatch.getHomeTeam()));
-        System.out.println("Away Momentum: " + currentMatch.getMomentumDescription(currentMatch.getAwayTeam()));
-        System.out.println();
+        System.out.println(
+            "Final Score: " + currentMatch.getScoreLine() + "\n" +
+            "Winner: " + currentMatch.getWinner() + "\n" +
+            "Yellow Cards: " + currentMatch.getYellowCardedPlayers().size() + "\n" +
+            "Red Cards: " + currentMatch.getRedCardedPlayers().size() + "\n" +
+            
+            "\n" +
 
-        System.out.println(BRIGHT_YELLOW + "Goal Events:" + RESET);
+            "Home Tactics: " + currentMatch.getTactics(currentMatch.getHomeTeam()) + "\n" +
+            "Away Tactics: " + currentMatch.getTactics(currentMatch.getAwayTeam()) + "\n" +
+            "Home Momentum: " + currentMatch.getMomentumDescription(currentMatch.getHomeTeam()) + "\n" +
+            "Away Momentum: " + currentMatch.getMomentumDescription(currentMatch.getAwayTeam()) + "\n" +
+    
+            "\n" +
+            
+            BRIGHT_YELLOW + "Goal Events:" + RESET
+        );
 
         boolean foundGoal = false;
         for (Event event : currentMatch.getEvents()) {
@@ -992,13 +961,11 @@ public class ConsoleUI {
 
     private void displayMatchHistory() {
         clearConsole();
+        
+        printHeader("MATCH HISTORY");
 
-        System.out.println(BRIGHT_CYAN + "╔══════════════════════════════════════╗");
-        System.out.println("║             MATCH HISTORY            ║");
-        System.out.println("╚══════════════════════════════════════╝" + RESET);
+        System.out.println(matchHistory);
         System.out.println();
-
-        System.out.println(matchHistory.getFormattedHistory());
     }
 
     /* Team selection methods */
@@ -1031,8 +998,7 @@ public class ConsoleUI {
             String selectedLeague = chooseLeague();
             ArrayList<Team> leagueTeams = teamsByLeague.get(selectedLeague);
 
-            System.out.println();
-            System.out.println(BRIGHT_YELLOW + "Choose Team from " + selectedLeague + ":" + RESET);
+            System.out.println("\n" + BRIGHT_YELLOW + "Choose Team from " + selectedLeague + ":" + RESET);
 
             for (int i = 0; i < leagueTeams.size(); i++) {
                 Team team = leagueTeams.get(i);
@@ -1044,14 +1010,12 @@ public class ConsoleUI {
             selectedTeam = leagueTeams.get(teamChoice - 1);
             clearPreviousLines(leagueTeams.size() + 3);
 
-            if (excludedTeams.contains(selectedTeam)) {
-                System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " Choose a different team.");
-                System.out.println();
-            }
+            if (excludedTeams.contains(selectedTeam)) System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " Choose a different team.\n");
         } while (excludedTeams.contains(selectedTeam));
 
         return selectedTeam;
     }
+    /* */
 
     /* Helper methods */
     private ArrayList<Team> flattenTeams(LinkedHashMap<String, ArrayList<Team>> teamsByLeague) {
@@ -1108,11 +1072,8 @@ public class ConsoleUI {
                 input = console.nextInt();
                 console.nextLine();
 
-                if (input >= min && input <= max) {
-                    validInput = true;
-                } else {
-                    System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " Use a number between " + min + " and " + max + ".");
-                }
+                if (input >= min && input <= max) validInput = true;
+                else System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " Use a number between " + min + " and " + max + ".");
             } catch (InputMismatchException e) {
                 console.nextLine();
                 System.out.println(BRIGHT_RED + "Invalid choice." + RESET + " Use a number between " + min + " and " + max + ".");
@@ -1145,10 +1106,8 @@ public class ConsoleUI {
     }
 
     public static void clearPreviousLines(int lines) {
-        for (int i = 0; i < lines; i++) {
-            System.out.print("\033[1A"); // move cursor up 1 line
-            System.out.print("\033[2K"); // clear the entire line
-        }
+        for (int i = 0; i < lines; i++) System.out.print("\033[1A\033[2K");
         System.out.flush();
     }
+    /* */
 }

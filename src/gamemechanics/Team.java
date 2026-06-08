@@ -25,20 +25,12 @@ public class Team {
         this.name = validateName(name);
         this.players = new ArrayList<>();
 
-        if (players != null) {
-            for (Player player : players) {
-                addPlayer(player);
-            }
-        }
+        if (players != null) for (Player player : players) addPlayer(player);
     }
 
-    /* Getters & Setters */
+    /* Getters */
     public String getName() {
         return this.name;
-    }
-
-    public void setName(String name) {
-        this.name = validateName(name);
     }
 
     public ArrayList<Player> getPlayers() {
@@ -46,11 +38,14 @@ public class Team {
     }
     /* */
 
-    /* Special Modifiers for 'players' field */
-    public int getNumberOfPlayers() {
-        return this.players.size();
+    // Method to get the goalkeeper of the team
+    public Player getGoalkeeper() {
+        for (Player player : this.players) if (player.getPosition().equalsIgnoreCase("GK")) return player;
+
+        return null;
     }
 
+    // Method to get the overall team rating\
     public double getAverageOverallRating() {
         if (players.isEmpty()) return 0;
 
@@ -60,30 +55,13 @@ public class Team {
         return total / players.size();
     }
 
-    public void setPlayers(ArrayList<Player> players) {
-        if (players == null) throw new IllegalArgumentException("Player list cannot be null.");
-
-        this.players = new ArrayList<>();
-        for (Player player : players) {
-            addPlayer(player);
-        }
-    }
-
+    /* Special Modifiers for 'players' field */
     public final boolean addPlayer(Player player) {
         if (player == null) throw new IllegalArgumentException("Cannot add a null player.");
 
         if (findPlayerByName(player.getName()) != null) return false;
 
         players.add(player);
-        return true;
-    }
-
-    public boolean removePlayerByName(String name) {
-        Player player = findPlayerByName(name);
-
-        if (player == null) return false;
-
-        players.remove(player);
         return true;
     }
 
@@ -95,16 +73,7 @@ public class Team {
         for (Player player : this.players) if (player.getName().equalsIgnoreCase(name)) return player;
         return null;
     }
-
-    public Player getGoalkeeper() {
-        for (Player player : this.players) {
-            if (player.getPosition().equalsIgnoreCase("GK")) {
-                return player;
-            }
-        }
-
-        return null;
-    }
+    /* */
 
     /* Team Rating Methods */
     public double getTeamAttackRating() {
@@ -147,11 +116,8 @@ public class Team {
 
         double total = 0;
 
-        // Excluded players are skipped but the divisor remains the full team size.
-        // This intentionally lowers team strength when players are red-carded.
-        for (Player player : this.players) {
-            if (!(excludedPlayers != null && findPlayer(player, excludedPlayers))) total += getPlayerRatingByCategory(player, category);
-        }
+        // Excluded players are skipped to simulate real life consequnces
+        for (Player player : this.players) if (!(excludedPlayers != null && findPlayer(player, excludedPlayers))) total += getPlayerRatingByCategory(player, category);
 
         return total / this.players.size();
     }
@@ -180,14 +146,8 @@ public class Team {
     }
 
     private boolean findPlayer(Player player, ArrayList<Player> playerList) {
-        if (player == null || playerList == null) {
-            throw new IllegalArgumentException("Player and player list cannot be null.");
-        }
-        for (Player p : playerList) {
-            if (p.getName().equalsIgnoreCase(player.getName())) {
-                return true;
-            }
-        }
+        if (player == null || playerList == null) throw new IllegalArgumentException("Player and player list cannot be null.");
+        for (Player p : playerList) if (p.getName().equalsIgnoreCase(player.getName())) return true;
         return false;
     }
 
@@ -197,7 +157,7 @@ public class Team {
     @Override
     public String toString() {
         String result = this.name + "\n"
-            + "Players: " + getNumberOfPlayers() + "\n"
+            + "Players: " + this.players.size() + "\n"
             + "Overall: " + roundVal(getAverageOverallRating()) + "\n"
             + "Attack: " + roundVal(getTeamAttackRating()) + "\n"
             + "Midfield: " + roundVal(getTeamMidfieldRating()) + "\n"
@@ -205,9 +165,7 @@ public class Team {
             + "Goalkeeper: " + roundVal(getTeamGoalkeeperRating()) + "\n"
             + "Roster:";
 
-        for (Player player : players) {
-            result += "\n- " + player.getName();
-        }
+        for (Player player : players) result += "\n- " + player.getName();
 
         return result;
     }

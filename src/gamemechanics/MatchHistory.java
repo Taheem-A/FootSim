@@ -5,7 +5,7 @@ package gamemechanics;
 import java.util.ArrayList;
 
 public class MatchHistory {
-    // Instance fields
+    // Instance field
     private final ArrayList<Match> matches;
 
     // Main constructor
@@ -19,23 +19,14 @@ public class MatchHistory {
         this.matches.add(match);
     }
 
-    // Returns the total number of saved matches.
-    public int getNumberOfMatches() {
-        return this.matches.size();
-    }
-
-    // Checks whether the match history is empty.
-    public boolean isEmpty() {
-        return this.matches.isEmpty();
-    }
-
-    // Returns a safe copy of the saved matches.
+    // Returns a copy of the saved matches.
     public ArrayList<Match> getMatches() {
         return new ArrayList<>(this.matches);
     }
 
-    // Displays all saved matches in a clean numbered format.
-    public String getFormattedHistory() {
+    // Overriden 'toString()' method
+    @Override
+    public String toString() {
         if (this.matches.isEmpty()) return "No matches have been played yet.";
 
         String result = "MATCH HISTORY\n";

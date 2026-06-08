@@ -4,6 +4,7 @@ package gamemechanics;
 // Importing necessary classes
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -13,27 +14,20 @@ import java.util.LinkedHashMap;
 import java.util.Random;
 
 public class TeamFactory {
-    private static final String RESOURCE_DATA_FILE = "/data/player_data.csv";
-    private static final String FALLBACK_DATA_FILE = "src/data/player_data.csv";
+    private static final String RESOURCE_DATA_FILE = "/data/fc26_player_data.csv";
+    private static final String FALLBACK_DATA_FILE = "src/data/fc26_player_data.csv";
     private static final int PLAYERS_PER_TEAM = 11;
     private static final Random random = new Random();
 
     // Private constructor prevents this utility class from being instantiated.
     private TeamFactory() { }
 
-    // Creates every available team from the FC 26 data file.
-    public static ArrayList<Team> createDefaultTeams() {
-        return createAllTeams();
-    }
-
     // Creates every team stored in the CSV file.
     public static ArrayList<Team> createAllTeams() {
         LinkedHashMap<String, ArrayList<PlayerRecord>> groupedPlayers = loadPlayerRecordsByTeam();
         ArrayList<Team> teams = new ArrayList<>();
 
-        for (String teamName : groupedPlayers.keySet()) {
-            teams.add(buildTeam(teamName, groupedPlayers.get(teamName)));
-        }
+        for (String teamName : groupedPlayers.keySet()) teams.add(buildTeam(teamName, groupedPlayers.get(teamName)));
 
         return teams;
     }
@@ -64,50 +58,15 @@ public class TeamFactory {
         return new ArrayList<>(createTeamsByLeague().keySet());
     }
 
-    // Creates one team by name.
-    public static Team createTeamByName(String requestedTeamName) {
-        if (requestedTeamName == null || requestedTeamName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Team name cannot be empty.");
-        }
-
-        LinkedHashMap<String, ArrayList<PlayerRecord>> groupedPlayers = loadPlayerRecordsByTeam();
-
-        for (String teamName : groupedPlayers.keySet()) {
-            if (teamName.equalsIgnoreCase(requestedTeamName.trim())) {
-                return buildTeam(teamName, groupedPlayers.get(teamName));
-            }
-        }
-
-        throw new IllegalArgumentException("Team not found: " + requestedTeamName);
-    }
-
-    // Returns the names of all teams available in the data file.
-    public static ArrayList<String> getTeamNames() {
-        return new ArrayList<>(loadPlayerRecordsByTeam().keySet());
-    }
-
-    // Returns how many teams are available.
-    public static int getTeamCount() {
-        return loadPlayerRecordsByTeam().size();
-    }
-
     // Selects a random team while optionally excluding one team.
     public static Team getRandomTeam(ArrayList<Team> teams, Team excludedTeam) {
-        if (teams == null || teams.isEmpty()) {
-            throw new IllegalArgumentException("Team list cannot be empty.");
-        }
+        if (teams == null || teams.isEmpty()) throw new IllegalArgumentException("Team list cannot be empty.");
 
         ArrayList<Team> availableTeams = new ArrayList<>();
 
-        for (Team team : teams) {
-            if (team != excludedTeam) {
-                availableTeams.add(team);
-            }
-        }
+        for (Team team : teams) if (team != excludedTeam) availableTeams.add(team);
 
-        if (availableTeams.isEmpty()) {
-            throw new IllegalArgumentException("No available teams to choose from.");
-        }
+        if (availableTeams.isEmpty()) throw new IllegalArgumentException("No available teams to choose from.");
 
         return availableTeams.get(random.nextInt(availableTeams.size()));
     }
@@ -153,16 +112,8 @@ public class TeamFactory {
             while ((line = reader.readLine()) != null) {
                 rowNumber++;
 
-                if (firstLine) {
-                    firstLine = false;
-                    continue;
-                }
-
-                if (line.trim().isEmpty()) {
-                    continue;
-                }
-
-                records.add(parsePlayerRecord(line, rowNumber));
+                if (firstLine) firstLine = false;
+                else if (!line.trim().isEmpty()) records.add(parsePlayerRecord(line, rowNumber));
             }
         } catch (Exception e) {
             throw new IllegalStateException("Error loading team data: " + e.getMessage());
@@ -171,18 +122,16 @@ public class TeamFactory {
         return records;
     }
 
-    // Opens the data file from the classpath first, then from the src folder as a fallback.
+    // Opens the data file from the default location first, then the src folder as a fallback.
     private static InputStream openDataFile() {
         InputStream stream = TeamFactory.class.getResourceAsStream(RESOURCE_DATA_FILE);
 
-        if (stream != null) {
-            return stream;
-        }
+        if (stream != null) return stream;
 
         try {
             return new FileInputStream(FALLBACK_DATA_FILE);
-        } catch (Exception e) {
-            throw new IllegalStateException("Could not find data file. Tried " + RESOURCE_DATA_FILE + " and " + FALLBACK_DATA_FILE + ".");
+        } catch (FileNotFoundException e) {
+            throw new IllegalStateException("Could not find data file. Both " + RESOURCE_DATA_FILE + " and " + FALLBACK_DATA_FILE + " failed.");
         }
     }
 
@@ -190,9 +139,7 @@ public class TeamFactory {
     private static PlayerRecord parsePlayerRecord(String line, int rowNumber) {
         String[] parts = line.split(",", -1);
 
-        if (parts.length != 11) {
-            throw new IllegalArgumentException("Invalid CSV format on row " + rowNumber + ": " + line);
-        }
+        if (parts.length != 11) throw new IllegalArgumentException("Invalid CSV format on row " + rowNumber + ": " + line);
 
         String league = parts[0].trim();
         String teamName = parts[1].trim();
@@ -222,8 +169,10 @@ public class TeamFactory {
         );
     }
 
-    // Builds a Team object using the best available players.
-    // It tries to create a balanced team first, then fills any missing spots with the best remaining players.
+    /**
+        Builds a Team object using the best available players.
+        Attempts to create a balanced team first, then fills any missing spots with the best remaining players.
+     */
     private static Team buildTeam(String teamName, ArrayList<PlayerRecord> records) {
         ArrayList<PlayerRecord> selectedRecords = new ArrayList<>();
 
@@ -237,15 +186,11 @@ public class TeamFactory {
         // fill the remaining spots with the best players who have not already been selected.
         fillRemainingPlayers(records, selectedRecords);
 
-        if (selectedRecords.size() < PLAYERS_PER_TEAM) {
-            throw new IllegalArgumentException(teamName + " does not have enough total players for a full starting 11.");
-        }
+        if (selectedRecords.size() < PLAYERS_PER_TEAM) throw new IllegalArgumentException(teamName + " does not have enough total players for a full starting 11.");
 
         ArrayList<Player> players = new ArrayList<>();
 
-        for (PlayerRecord record : selectedRecords) {
-            players.add(createPlayerFromRecord(record));
-        }
+        for (PlayerRecord record : selectedRecords) players.add(createPlayerFromRecord(record));
 
         return new Team(teamName, players);
     }
@@ -259,17 +204,11 @@ public class TeamFactory {
     ) {
         ArrayList<PlayerRecord> matchingRecords = new ArrayList<>();
 
-        for (PlayerRecord record : records) {
-            if (record.position.equals(position) && !selectedRecords.contains(record)) {
-                matchingRecords.add(record);
-            }
-        }
+        for (PlayerRecord record : records) if (record.position.equals(position) && !selectedRecords.contains(record)) matchingRecords.add(record);
 
         sortByOverall(matchingRecords);
 
-        for (int i = 0; i < matchingRecords.size() && i < amount; i++) {
-            selectedRecords.add(matchingRecords.get(i));
-        }
+        for (int i = 0; i < matchingRecords.size() && i < amount; i++) selectedRecords.add(matchingRecords.get(i));
     }
 
     // Fills any empty squad spots with the best remaining players, regardless of position.
@@ -279,17 +218,11 @@ public class TeamFactory {
     ) {
         ArrayList<PlayerRecord> remainingRecords = new ArrayList<>();
 
-        for (PlayerRecord record : records) {
-            if (!selectedRecords.contains(record)) {
-                remainingRecords.add(record);
-            }
-        }
+        for (PlayerRecord record : records) if (!selectedRecords.contains(record)) remainingRecords.add(record);
 
         sortByOverall(remainingRecords);
 
-        for (int i = 0; i < remainingRecords.size() && selectedRecords.size() < PLAYERS_PER_TEAM; i++) {
-            selectedRecords.add(remainingRecords.get(i));
-        }
+        for (int i = 0; i < remainingRecords.size() && selectedRecords.size() < PLAYERS_PER_TEAM; i++) selectedRecords.add(remainingRecords.get(i));
     }
 
     // Sorts players from highest overall to lowest overall.
@@ -316,9 +249,7 @@ public class TeamFactory {
     private static String convertPosition(String fcPosition) {
         String position = fcPosition.toUpperCase().trim();
 
-        if (position.equals("GK")) {
-            return "GK";
-        }
+        if (position.equals("GK")) return "GK";
 
         if (
             position.equals("CB") ||

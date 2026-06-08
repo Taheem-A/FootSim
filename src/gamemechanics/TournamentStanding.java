@@ -1,6 +1,11 @@
 // Exporting as package
 package gamemechanics;
 
+/*
+    The 'implements Comparable<TournamentStanding>' allows for sorting
+    The sorting uses an overriden 'compareTo' method
+    - This method is automatically called when using Collections.sort()
+*/
 public class TournamentStanding implements Comparable<TournamentStanding> {
     // Instance fields
     private final Team team;
@@ -58,7 +63,7 @@ public class TournamentStanding implements Comparable<TournamentStanding> {
     }
     /* */
 
-    // Updates this standing after one played match.
+    // Updates the standing after one played match
     public void recordMatch(int goalsFor, int goalsAgainst) {
         if (goalsFor < 0 || goalsAgainst < 0) throw new IllegalArgumentException("Goals cannot be negative.");
 
@@ -68,15 +73,14 @@ public class TournamentStanding implements Comparable<TournamentStanding> {
         if (goalsFor > goalsAgainst) {
             this.points += 3;
             this.wins++;
-        } else if (goalsFor < goalsAgainst) {
-            this.losses++;
-        } else {
+        } else if (goalsFor < goalsAgainst) this.losses++;
+        else {
             this.points++;
             this.draws++;
         }
     }
 
-    // Returns one formatted table row.
+    // Returns a formatted table row
     public String getFormattedStanding() {
         return String.format(
             "%-24s | Pts: %2d | W: %2d | D: %2d | L: %2d | GD: %3d | GF: %2d",
@@ -90,7 +94,7 @@ public class TournamentStanding implements Comparable<TournamentStanding> {
         );
     }
 
-    // Sorts standings by points, goal difference, goals for, then team overall.
+    // Overriden 'compareTo' method 
     @Override
     public int compareTo(TournamentStanding other) {
         if (other == null) throw new IllegalArgumentException("Other standing cannot be null.");

@@ -2,6 +2,7 @@
 package gamemechanics;
 
 public enum TacticalStyle {
+    /* Enum constants with their respective modifiers and descriptions */
     BALANCED(
         "Balanced",
         "A safe setup with no major strengths or weaknesses.",
@@ -32,6 +33,7 @@ public enum TacticalStyle {
         "Controls midfield and lowers opponent momentum.",
         1, 8, 2, -1, 2, -2
     );
+    /* */
 
     // Instance fields
     private final String displayName;

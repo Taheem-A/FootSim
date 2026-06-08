@@ -2,8 +2,15 @@
 package simulation;
 
 // Importing necessary classes
-import gamemechanics.*;
-import java.util.*;
+import gamemechanics.Event;
+import gamemechanics.EventType;
+import gamemechanics.Match;
+import gamemechanics.Player;
+import gamemechanics.TacticalStyle;
+import gamemechanics.Team;
+import gamemechanics.TeamTactics;
+import java.util.ArrayList;
+import java.util.Random;
 
 public class SimulationEngine {
     // Constants and instance variables
@@ -32,9 +39,7 @@ public class SimulationEngine {
             setRandomTactics(match, match.getAwayTeam());
         }
 
-        while (!match.isFinished()) {
-            advanceMatch(match, 1, true);
-        }
+        while (!match.isFinished()) advanceMatch(match, 1, true);
     }
     /* */
 

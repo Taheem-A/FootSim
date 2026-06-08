@@ -25,7 +25,7 @@ public class Player {
 
     // Overloaded constructor used when no official overall rating is available.
     public Player(String name, String position, int pace, int shooting, int passing, int dribbling, int defence, int physical) {
-        this(name, position, calculateAverageOverall(pace, shooting, passing, dribbling, defence, physical), pace, shooting, passing, dribbling, defence, physical);
+        this(name, position, (int) Math.round((pace + shooting + passing + dribbling + defence + physical) / 6.0), pace, shooting, passing, dribbling, defence, physical);
     }
 
     // Main constructor used by CSV-loaded players with official FC overall ratings.
@@ -60,77 +60,41 @@ public class Player {
     }
     /* */
 
-    /* Getters & Setters */
+    /* Getters */
     public String getName() {
         return this.name;
-    }
-
-    public void setName(String name) {
-        this.name = validateName(name);
     }
 
     public String getPosition() {
         return this.position;
     }
 
-    public void setPosition(String position) {
-        this.position = validatePosition(position);
-    }
-
     public int getOverall() {
         return this.overall;
-    }
-
-    public void setOverall(int overall) {
-        this.overall = validateStat(overall);
     }
 
     public int getPace() {
         return this.pace;
     }
 
-    public void setPace(int pace) {
-        this.pace = validateStat(pace);
-    }
-
     public int getShooting() {
         return this.shooting;
-    }
-
-    public void setShooting(int shooting) {
-        this.shooting = validateStat(shooting);
     }
 
     public int getPassing() {
         return this.passing;
     }
 
-    public void setPassing(int passing) {
-        this.passing = validateStat(passing);
-    }
-
     public int getDribbling() {
         return this.dribbling;
-    }
-
-    public void setDribbling(int dribbling) {
-        this.dribbling = validateStat(dribbling);
     }
 
     public int getDefence() {
         return this.defence;
     }
 
-    public void setDefence(int defence) {
-        this.defence = validateStat(defence);
-    }
-
     public int getPhysical() {
         return this.physical;
-    }
-
-    public void setPhysical(int physical) {
-        this.physical = validateStat(physical);
     }
     /* */
 
@@ -157,12 +121,6 @@ public class Player {
 
     public double getGoalkeepingRating() {
         return this.pace * 0.10 + this.passing * 0.15 + this.dribbling * 0.05 + this.defence * 0.50 + this.physical * 0.20;
-    }
-    /* */
-
-    /* Helper methods */
-    private static int calculateAverageOverall(int pace, int shooting, int passing, int dribbling, int defence, int physical) {
-        return (int) Math.round((pace + shooting + passing + dribbling + defence + physical) / 6.0);
     }
     /* */
 

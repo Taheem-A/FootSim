@@ -2,6 +2,7 @@
 package gamemechanics;
 
 public enum TeamTalk {
+    /* Enum constants with their respective modifiers and descriptions */
     ENCOURAGE(
         "Encourage the Team",
         "Boost morale and confidence without adding much risk.",
@@ -22,6 +23,7 @@ public enum TeamTalk {
         "A risky talk that can fire the team up if they are losing.",
         3, 0, 0, 2, 3, 2, 0
     );
+    /* */
 
     // Instance fields
     private final String displayName;

@@ -2,9 +2,11 @@
 package gamemechanics;
 
 public enum TournamentFormat {
+    /* Enum constants with their respective modifiers and descriptions */
     KNOCKOUT_ONLY("Knockout Only", 16),
     CLASSIC_GROUP_STAGE("Classic Group Stage", 32),
     MODERN_LEAGUE_PHASE("Modern League Phase", 36);
+    /* */
 
     // Instance fields
     private final String displayName;
@@ -16,12 +18,12 @@ public enum TournamentFormat {
         this.defaultTeamCount = defaultTeamCount;
     }
 
-    // Returns the user-friendly format name.
+    // Returns the  format name.
     public String getDisplayName() {
         return this.displayName;
     }
 
-    // Returns the usual number of teams for this tournament format.
+    // Returns the number of teams for the associated tournament format.
     public int getDefaultTeamCount() {
         return this.defaultTeamCount;
     }

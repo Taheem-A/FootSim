@@ -25,7 +25,7 @@ public class Tournament {
     private Team userTeam;
     private Team champion;
 
-    // This listener lets the UI display live tournament updates without putting UI code inside Tournament.
+    // This interface lets the UI display live tournament updates without placing UI code inside Tournament
     public interface TournamentProgressListener {
         void onGroupCompleted(String groupName, ArrayList<TournamentStanding> standings);
         void onLeagueRoundCompleted(int roundNumber, ArrayList<TournamentStanding> standings);
@@ -55,6 +55,7 @@ public class Tournament {
         this.champion = null;
     }
 
+    /* Setters */
     public void setMatchRunner(TournamentMatchRunner matchRunner) {
         this.matchRunner = matchRunner;
     }
@@ -62,8 +63,10 @@ public class Tournament {
     public void setProgressListener(TournamentProgressListener progressListener) {
         this.progressListener = progressListener;
     }
+    /* */
 
     /* Main tournament simulation methods */
+
     // Simulates a simple knockout-only tournament.
     public Team simulateKnockoutTournament() {
         validatePowerOfTwo(this.teams.size(), "Knockout tournament");
@@ -79,11 +82,14 @@ public class Tournament {
         return this.champion;
     }
 
-    // Simulates the older Champions League style: 32 teams, 8 groups of 4, then a 16-team knockout.
+    /*
+        Simulates older UEFA Champions League format:
+            - 32 teams
+            - 8 groups of 4
+            - Top 2 from each group advance to Knockout stage
+    */
     public Team simulateClassicGroupStage() {
-        if (this.teams.size() != TournamentFormat.CLASSIC_GROUP_STAGE.getDefaultTeamCount()) {
-            throw new IllegalStateException("Classic Group Stage requires exactly 32 teams.");
-        }
+        if (this.teams.size() != TournamentFormat.CLASSIC_GROUP_STAGE.getDefaultTeamCount()) throw new IllegalStateException("Classic Group Stage requires exactly 32 teams.");
 
         log.add("=== " + this.name + " - Classic Group Stage ===");
         logUserTeam();
@@ -106,7 +112,7 @@ public class Tournament {
             groupRunnersUp.add(standings.get(1).getTeam());
         }
 
-        ArrayList<Team> roundOf16Teams = buildClassicRoundOf16Draw(groupWinners, groupRunnersUp);
+        ArrayList<Team> roundOf16Teams = buildRoundof16Draw(groupWinners, groupRunnersUp);
         this.champion = simulateKnockoutStage(roundOf16Teams, "Round of 16");
 
         log.add("");
@@ -115,7 +121,18 @@ public class Tournament {
         return this.champion;
     }
 
-    // Simulates the newer Champions League style: 36-team league phase, play-offs, then Round of 16.
+    /*
+        Simulates modern UEFA Champions League format:
+            - 36 teams
+            - League phase
+                - Each team plays 8 matches against randomly assigned opponents
+                - No fixed groups, but teams are ranked in a single table
+                - Top 8 advance directly to Knockout stage
+                - 9th-24th enter play-offs:
+                    - 9th-16th are seeded and drawn against 17th-24th
+                    - Winners advance to Round of 16
+                - 25th-36th are eliminated
+    */
     public Team simulateModernLeaguePhase() {
         if (this.teams.size() != TournamentFormat.MODERN_LEAGUE_PHASE.getDefaultTeamCount()) {
             throw new IllegalStateException("Modern League Phase requires exactly 36 teams.");
@@ -134,11 +151,11 @@ public class Tournament {
         for (int i = 0; i < standings.size(); i++) {
             String status;
 
-            if (i < 8) status = " [Round of 16]";
-            else if (i < 24) status = " [Play-Offs]";
-            else status = " [Eliminated]";
+            if (i < 8) status = "[Round of 16]";
+            else if (i < 24) status = "[Play-Offs]";
+            else status = "[Eliminated]";
 
-            log.add(String.format("%2d. %s%s", i + 1, standings.get(i).getFormattedStanding(), status));
+            log.add(String.format("%2d. %s %s", i + 1, standings.get(i).getFormattedStanding(), status));
         }
 
         ArrayList<Team> directRoundOf16Teams = new ArrayList<>();
@@ -160,44 +177,26 @@ public class Tournament {
         return this.champion;
     }
 
-    // Backwards-compatible method name from the old version.
-    public Team simulateGroupStageAndKnockout() {
-        return simulateClassicGroupStage();
-    }
-    /* */
-
     /* Getters */
     public ArrayList<Match> getMatches() {
         return new ArrayList<>(this.matches);
     }
 
-    public Team getChampion() {
-        return this.champion;
-    }
-
     public String getFormattedReport() {
         if (this.log.isEmpty()) return "Tournament has not been simulated yet.";
 
-        String result = "";
-
-        for (String line : this.log) {
-            result += line + "\n";
-        }
-
-        return result;
+        return String.join("\n", this.log);
     }
     /* */
 
-    /* Classic group stage methods */
+    /* Older group stage methods */
     private ArrayList<TournamentStanding> simulateGroup(String groupName, ArrayList<Team> groupTeams) {
         ArrayList<TournamentStanding> standings = createStandings(groupTeams);
 
         log.add("");
         log.add("=== " + groupName + " ===");
 
-        for (Team team : groupTeams) {
-            log.add("- " + team.getName());
-        }
+        for (Team team : groupTeams) log.add("- " + team.getName());
 
         log.add("");
 
@@ -218,20 +217,16 @@ public class Tournament {
 
         log.add("");
         log.add(groupName + " Standings:");
-        for (int i = 0; i < standings.size(); i++) {
-            log.add((i + 1) + ". " + standings.get(i).getFormattedStanding());
-        }
+        for (int i = 0; i < standings.size(); i++) log.add((i + 1) + ". " + standings.get(i).getFormattedStanding());
 
         log.add("Qualified: " + standings.get(0).getTeam().getName() + ", " + standings.get(1).getTeam().getName());
 
-        if (progressListener != null) {
-            progressListener.onGroupCompleted(groupName, new ArrayList<>(standings));
-        }
+        if (progressListener != null) progressListener.onGroupCompleted(groupName, new ArrayList<>(standings));
 
         return standings;
     }
 
-    private ArrayList<Team> buildClassicRoundOf16Draw(ArrayList<Team> groupWinners, ArrayList<Team> groupRunnersUp) {
+    private ArrayList<Team> buildRoundof16Draw(ArrayList<Team> groupWinners, ArrayList<Team> groupRunnersUp) {
         ArrayList<Team> draw = new ArrayList<>();
 
         for (int i = 0; i < groupWinners.size(); i++) {
@@ -278,23 +273,16 @@ public class Tournament {
 
             Collections.sort(standings);
 
-            if (progressListener != null) {
-                progressListener.onLeagueRoundCompleted(round, new ArrayList<>(standings));
-            }
+            if (progressListener != null) progressListener.onLeagueRoundCompleted(round, new ArrayList<>(standings));
 
-            rotateTeams(scheduledTeams);
+            // Rotate the schedule to ensure no rematch-ups and no team is left out
+            scheduledTeams.add(1, scheduledTeams.remove(scheduledTeams.size() - 1));
         }
 
         return standings;
     }
 
-    private void rotateTeams(ArrayList<Team> scheduledTeams) {
-        if (scheduledTeams.size() <= 2) return;
-
-        Team lastTeam = scheduledTeams.remove(scheduledTeams.size() - 1);
-        scheduledTeams.add(1, lastTeam);
-    }
-
+    // Simulates the play-offs
     private ArrayList<Team> simulatePlayoffRound(ArrayList<Team> playoffTeams) {
         ArrayList<Team> playoffWinners = new ArrayList<>();
         ArrayList<Match> roundMatches = new ArrayList<>();
@@ -318,13 +306,16 @@ public class Tournament {
             if (!result.penaltyNote.isEmpty()) log.add(result.penaltyNote);
         }
 
-        if (progressListener != null) {
-            progressListener.onKnockoutRoundCompleted("Knockout Play-Off Round", roundMatches, new ArrayList<>(playoffWinners));
-        }
+        if (progressListener != null) progressListener.onKnockoutRoundCompleted("Knockout Play-Off Round", roundMatches, new ArrayList<>(playoffWinners));
 
         return playoffWinners;
     }
 
+    /*
+        Builds Ro16 draw:
+            - 1st place teams are drawn against play-off winners in reverse order 
+            - eg. 1st place team against 8th play-off winner, 2nd place against 7th play-off winner, ...
+    */
     private ArrayList<Team> buildModernRoundOf16Draw(ArrayList<Team> directTeams, ArrayList<Team> playoffWinners) {
         ArrayList<Team> draw = new ArrayList<>();
 
@@ -367,9 +358,7 @@ public class Tournament {
                 if (!result.penaltyNote.isEmpty()) log.add(result.penaltyNote);
             }
 
-            if (progressListener != null) {
-                progressListener.onKnockoutRoundCompleted(stripRoundDecorations(roundName), roundMatches, new ArrayList<>(winners));
-            }
+            if (progressListener != null) progressListener.onKnockoutRoundCompleted(stripRoundDecorations(roundName), roundMatches, new ArrayList<>(winners));
 
             remainingTeams = winners;
             roundNumber++;
@@ -378,6 +367,7 @@ public class Tournament {
         return remainingTeams.get(0);
     }
 
+    // Plays a tournament match
     private Match playTournamentMatch(Team homeTeam, Team awayTeam) {
         boolean userTeamMatch = userTeam != null && (homeTeam == userTeam || awayTeam == userTeam);
 
@@ -388,6 +378,7 @@ public class Tournament {
         return engine.simulateMatch(homeTeam, awayTeam);
     }
 
+    // Determines match result
     private MatchResult getMatchResult(Match match) {
         if (match.getHomeScore() > match.getAwayScore()) return new MatchResult(match.getHomeTeam(), "");
         if (match.getAwayScore() > match.getHomeScore()) return new MatchResult(match.getAwayTeam(), "");
@@ -396,6 +387,7 @@ public class Tournament {
         return new MatchResult(penaltyWinner, "Penalty shootout: " + penaltyWinner.getName() + " advances.");
     }
 
+    // Penalty shootout simulation
     private Team decidePenaltyWinner(Team teamA, Team teamB) {
         int teamAScore = 0;
         int teamBScore = 0;
@@ -410,15 +402,17 @@ public class Tournament {
             if (scorePenalty(teamB, teamA)) teamBScore++;
         }
 
-        return teamAScore > teamBScore ? teamA : teamB;
+        if (teamAScore > teamBScore) return teamA;
+        else return teamB;
     }
 
+    // Simulate penalty
     private boolean scorePenalty(Team shootingTeam, Team defendingTeam) {
         double chance = 65
             + shootingTeam.getTeamAttackRating() * 0.20
             - defendingTeam.getTeamGoalkeeperRating() * 0.15;
 
-        return random.nextDouble() * 100 <= chance;
+        return random.nextInt(100) < chance;
     }
 
     private String getRoundName(int teamsRemaining, int roundNumber, String openingRoundName) {
@@ -431,13 +425,11 @@ public class Tournament {
     }
     /* */
 
-    /* Standing helper methods */
+    /* Standings helper methods */
     private ArrayList<TournamentStanding> createStandings(ArrayList<Team> teams) {
         ArrayList<TournamentStanding> standings = new ArrayList<>();
 
-        for (Team team : teams) {
-            standings.add(new TournamentStanding(team));
-        }
+        for (Team team : teams) standings.add(new TournamentStanding(team));
 
         return standings;
     }
@@ -477,6 +469,7 @@ public class Tournament {
     }
     /* */
 
+    // Inner class to represent match results, including penalty shootout notes if applicable
     private class MatchResult {
         private Team winner;
         private String penaltyNote;

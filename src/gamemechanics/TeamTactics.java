@@ -19,7 +19,8 @@ public class TeamTactics {
 
     // Main constructor
     public TeamTactics(TacticalStyle style) {
-        setStyle(style);
+        if (style == null) throw new IllegalArgumentException("Tactical style cannot be null.");
+        this.style = style;
         this.activeDecision = ManagerDecision.KEEP_SHAPE;
         clearTeamTalkModifiers();
     }
@@ -71,11 +72,6 @@ public class TeamTactics {
     /* */
 
     /* Tactical modifiers */
-    public void setStyle(TacticalStyle style) {
-        if (style == null) throw new IllegalArgumentException("Tactical style cannot be null.");
-        this.style = style;
-    }
-
     public void applyManagerDecision(ManagerDecision decision) {
         if (decision == null) throw new IllegalArgumentException("Manager decision cannot be null.");
         this.activeDecision = decision;

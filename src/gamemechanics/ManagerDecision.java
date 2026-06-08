@@ -2,6 +2,7 @@
 package gamemechanics;
 
 public enum ManagerDecision {
+    /* Enum constants with their respective modifiers and descriptions */
     KEEP_SHAPE(
         "Keep Current Shape",
         "Stay disciplined and continue with the current plan.",
@@ -27,6 +28,7 @@ public enum ManagerDecision {
         "Control the ball and calm the match down.",
         -2, 6, 4, -5, 0, -3, 2
     );
+    /* */
 
     // Instance fields
     private final String displayName;
