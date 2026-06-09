@@ -145,6 +145,16 @@ public class Player {
             | Defence       | %-5d |
             | Physical      | %-5d |
             +---------------+-------+
-            """.formatted(formattedName, this.position, getRoundedOverallRating(), this.pace, this.shooting, this.passing, this.dribbling, this.defence, this.physical);
+            """.formatted(
+                formattedName,
+                this.position,
+                getRoundedOverallRating(),
+                this.pace,
+                this.shooting,
+                this.passing,
+                this.dribbling,
+                this.defence,
+                this.physical
+            );
     }
 }

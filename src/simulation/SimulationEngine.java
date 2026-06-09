@@ -76,15 +76,11 @@ public class SimulationEngine {
 
             generateMinuteEvents(match, match.getCurrentMinute(), autoResolveChoices);
 
-            if (match.getCurrentMinute() >= match.getMatchLength() && !match.isFinished()) {
-                match.endMatch();
-            }
+            if (match.getCurrentMinute() >= match.getMatchLength() && !match.isFinished()) match.endMatch();
         }
 
         ArrayList<Event> allEvents = match.getEvents();
-        for (int i = eventCountBefore; i < allEvents.size(); i++) {
-            newEvents.add(allEvents.get(i));
-        }
+        for (int i = eventCountBefore; i < allEvents.size(); i++) newEvents.add(allEvents.get(i));
 
         return newEvents;
     }

@@ -3,12 +3,12 @@ package ui;
 
 // Importing all necessary classes
 import gamemechanics.core.Event;
-import gamemechanics.tactics.ManagerDecision;
 import gamemechanics.core.Match;
 import gamemechanics.core.MatchHistory;
-import gamemechanics.tactics.TacticalStyle;
 import gamemechanics.core.Team;
 import gamemechanics.factory.TeamFactory;
+import gamemechanics.tactics.ManagerDecision;
+import gamemechanics.tactics.TacticalStyle;
 import gamemechanics.tactics.TeamTactics;
 import gamemechanics.tactics.TeamTalk;
 import gamemechanics.tournament.Tournament;
@@ -64,7 +64,7 @@ public class ConsoleUI {
 
         do {
             displayMainMenu();
-            mainMenuChoice = validateInput("Your choice: ", 1, 6);
+            mainMenuChoice = validateInput("Your choice: ", 1, 7);
 
             switch (mainMenuChoice) {
                 case 1 -> runQuickMatch();
@@ -78,12 +78,16 @@ public class ConsoleUI {
                     displayMatchHistory();
                     pause();
                 }
+                case 6 -> {
+                    displayGameInstructions();
+                    pause();
+                }
                 default -> {
                     clearConsole();
                     System.out.println(RESET + "See you soon!");
                 }
             }
-        } while (mainMenuChoice != 6);
+        } while (mainMenuChoice != 7);
     }
 
     /* Game mode methods */
@@ -1021,7 +1025,8 @@ public class ConsoleUI {
             + "\n" + " [3] Tournament Mode"
             + "\n" + " [4] View Teams"
             + "\n" + " [5] Match History"
-            + "\n" + " [6] Quit"
+            + "\n" + " [6] Game Instructions"
+            + "\n" + " [7] Quit"
             + "\n"
             + "\n" + "────────────────────────────────────────"
             + "\n"
@@ -1147,6 +1152,56 @@ public class ConsoleUI {
 
         System.out.println(matchHistory);
         System.out.println();
+    }
+
+    private void displayGameInstructions() {
+        clearConsole();
+
+        printHeader("GAME INSTRUCTIONS");
+
+        System.out.println(BRIGHT_YELLOW + 
+            "Main Menu" + RESET + "\n" +
+            "- Quick Match creates a match between two random teams" + "\n" +
+            "- Custom Match lets you choose the home and away teams" + "\n" +
+            "- Tournament Mode lets you create and simulate a full tournament" + "\n" +
+            "- View Teams shows all available teams grouped by league" + "\n" +
+            "- Match History shows completed matches from the current session" + "\n\n" +
+            
+            BRIGHT_YELLOW + "Match Setup" + RESET + "\n" +
+            "- Before a match starts, you can choose to control the home team, away team, or no team" + "\n" +
+            "- If you control a team, you will choose that team's pre-match tactical style" + "\n" +
+            "- If you choose not to control a team, the match can still be simulated normally" + "\n\n" +
+            
+            BRIGHT_YELLOW + "Match Centre" + RESET + "\n" +
+            "- Play Interactive Match runs the match minute-by-minute" + "\n" +
+            "- Simulate Rest Instantly finishes the match automatically" + "\n" +
+            "- View Teams displays both teams' player information" + "\n" +
+            "- View Match Timeline shows the events that happened in the match" + "\n" +
+            "- View Match Summary shows the final score, winner, cards, tactics, momentum, and goals" + "\n\n" +
+            
+            BRIGHT_YELLOW + "Interactive Match Decisions" + RESET + "\n" +
+            "- During interactive matches, important events appear live as the match progresses" + "\n" +
+            "- Big chances may ask you to choose how your team attacks" + "\n" +
+            "- At certain minutes, manager decisions may appear and affect your team's momentum" + "\n" +
+            "- At half-time, you may choose a team talk to influence the second half" + "\n\n" +
+            
+            BRIGHT_YELLOW + "Tournament Mode" + RESET + "\n" +
+            "- You can choose from Knockout Only, Classic Group Stage, or Modern League Phase tournaments" + "\n" +
+            "- You can choose your own team or let the tournament run without a controlled team" + "\n" +
+            "- Tournament teams can be selected randomly, manually, or with a mix of both" + "\n" +
+            "- If you control a team, you can simulate all matches, play all matches, or decide before each match" + "\n\n" +
+            
+            BRIGHT_YELLOW + "Penalty Shootouts" + RESET + "\n" +
+            "- Knockout matches that end in a draw can go to penalties" + "\n" +
+            "- If your team is involved, you may choose to play or instantly simulate the shootout" + "\n" +
+            "- When taking penalties, choose left, middle, or right" + "\n" +
+            "- Shootouts continue into sudden death if the score is still tied after five penalties each" + "\n\n" +
+            
+            BRIGHT_YELLOW + "Tips" + RESET + "\n" +
+            "- Stronger teams usually perform better, but tactics, momentum, and random events can still change the result" + "\n" +
+            "- Use interactive mode when you want more control" + "\n" +
+            "- Use instant simulation when you want faster results" + "\n"
+        );
     }
 
     /* Team selection methods */
@@ -1281,12 +1336,12 @@ public class ConsoleUI {
         }
     }
 
-    private void clearConsole() {
+    private static void clearConsole() {
         System.out.print("\033[H\033[2J\033[3J");
         System.out.flush();
     }
 
-    public static void clearPreviousLines(int lines) {
+    private static void clearPreviousLines(int lines) {
         for (int i = 0; i < lines; i++) System.out.print("\033[1A\033[2K");
         System.out.flush();
     }

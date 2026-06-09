@@ -2,12 +2,11 @@
 package gamemechanics.core;
 
 // Importing necessary classes
-import java.util.ArrayList;
-import java.util.Collections;
-
 import gamemechanics.tactics.ManagerDecision;
 import gamemechanics.tactics.TeamTactics;
 import gamemechanics.tactics.TeamTalk;
+import java.util.ArrayList;
+import java.util.Collections;
 
 public class Match {
     // Static fields
